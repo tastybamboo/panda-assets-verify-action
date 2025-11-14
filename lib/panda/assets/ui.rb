@@ -2,7 +2,7 @@
 
 module Panda
   module Assets
-    module UI
+    module Ui
       module_function
 
       def colour_enabled?
@@ -14,25 +14,53 @@ module Panda
         "\e[#{code}m"
       end
 
-      def reset  = colour("0")
-      def green(s) = "#{colour("32")}#{s}#{reset}"
-      def red(s)   = "#{colour("31")}#{s}#{reset}"
-      def yellow(s)= "#{colour("33")}#{s}#{reset}"
-      def cyan(s)  = "#{colour("36")}#{s}#{reset}"
-      def bold(s)  = "#{colour("1")}#{s}#{reset}"
+      def reset
+        colour("0")
+      end
+
+      def green(str)
+        "#{colour("32")}#{str}#{reset}"
+      end
+
+      def red(str)
+        "#{colour("31")}#{str}#{reset}"
+      end
+
+      def yellow(str)
+        "#{colour("33")}#{str}#{reset}"
+      end
+
+      def cyan(str)
+        "#{colour("36")}#{str}#{reset}"
+      end
+
+      def bold(str)
+        "#{colour("1")}#{str}#{reset}"
+      end
 
       def banner(title)
-        line = "─" * (title.length + 10)
+        line = "─" * [title.size + 10, 20].max
         puts
         puts cyan("┌#{line}┐")
         puts cyan("│ ") + bold(title) + cyan(" │")
         puts cyan("└#{line}┘")
       end
 
-      def step(s)  = puts "• #{s}"
-      def ok(s)    = puts "   #{green("✓")} #{s}"
-      def warn(s)  = puts "   #{yellow("!")} #{s}"
-      def error(s) = puts "   #{red("✗")} #{s}"
+      def step(title)
+        puts "• #{title}"
+      end
+
+      def ok(msg)
+        puts "   #{green("✓")} #{msg}"
+      end
+
+      def warn(msg)
+        puts "   #{yellow("!")} #{msg}"
+      end
+
+      def error(msg)
+        puts "   #{red("✗")} #{msg}"
+      end
     end
   end
 end

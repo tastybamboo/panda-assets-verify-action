@@ -1,57 +1,80 @@
 # frozen_string_literal: true
 
-require "benchmark"
+require "fileutils"
 
 module Panda
   module Assets
     class Preparer
-      include UI
+      include Ui
 
-      def initialize(summary)
+      def initialize(dummy_root:, summary:)
+        @dummy_root = File.expand_path(dummy_root)
         @summary = summary
       end
 
       def run!
-        UI.banner("Prepare Panda Assets")
+        Ui.banner("Prepare Panda Assets")
 
-        t = Benchmark.realtime do
+        # Capture all output
+        log_io = StringIO.new
+        $stdout = Tee.new($stdout, log_io)
+
+        begin
           compile_propshaft
           copy_engine_js
           generate_importmap
+        rescue => e
+          Ui.error("Preparation failed: #{e.message}")
+          @summary.mark_prepare_failed!
+        ensure
+          $stdout = $stdout.original
+          @summary.prepare_log = log_io.string
         end
-
-        @summary.record_time(:prepare_total, t)
       end
 
       private
 
-      def dummy_root
-        ENV["dummy_root"] || "spec/dummy"
-      end
-
       def compile_propshaft
-        UI.step("Compiling Propshaft assets")
-        ok = system("cd #{dummy_root} && bundle exec rails assets:precompile RAILS_ENV=test")
-        @summary.record_prepare(:propshaft_compile, ok)
-        UI.ok("Compiled propshaft assets") if ok
-        UI.error("Propshaft failed") unless ok
+        Ui.step("Compiling Propshaft assets")
+        system("bin/rails assets:precompile") or raise "Propshaft failed"
+        Ui.ok("Compiled propshaft assets")
       end
 
       def copy_engine_js
-        UI.step("Copying engine JS")
-        core_src = File.expand_path("../../../app/javascript/panda/core", __dir__)
-        dest = File.join(dummy_root, "app/javascript/panda/core")
+        Ui.step("Copying engine JS")
+        src = File.join(Dir.pwd, "app/javascript/panda")
+        dest = File.join(@dummy_root, "app/javascript/panda")
         FileUtils.mkdir_p(dest)
-        ok = FileUtils.cp_r(Dir["#{core_src}/*"], dest) rescue false
-        @summary.record_prepare(:copy_js, ok)
-        ok ? UI.ok("Copied JS") : UI.error("Could not copy JS")
+        FileUtils.cp_r("#{src}/.", dest)
+        Ui.ok("Copied JS")
       end
 
       def generate_importmap
-        UI.step("Generating importmap.json")
-        ok = system("cd #{dummy_root} && bundle exec rails runner 'puts Rails.application.importmap.to_json(resolver: ActionController::Base.helpers)' > public/assets/importmap.json")
-        @summary.record_prepare(:importmap_generate, ok)
-        ok ? UI.ok("Generated importmap") : UI.error("importmap.json failed")
+        Ui.step("Generating importmap.json")
+        system("bin/rails importmap:json") or raise "Failed importmap generation"
+        Ui.ok("Generated importmap")
+      end
+
+      #
+      # Used to clone stdout and capture logs
+      #
+      class Tee
+        attr_reader :original
+
+        def initialize(original, clone)
+          @original = original
+          @clone = clone
+        end
+
+        def write(*args)
+          @original.write(*args)
+          @clone.write(*args)
+        end
+
+        def flush
+          @original.flush
+          @clone.flush
+        end
       end
     end
   end

@@ -3,28 +3,25 @@
 module Panda
   module Assets
     class Summary
-      attr_reader :prepare_checks, :verify_checks, :timings
+      attr_accessor :prepare_log, :verify_log
 
       def initialize
-        @prepare_checks = {}
-        @verify_checks = {}
-        @timings = {}
+        @prepare_log = +""
+        @verify_log  = +""
+        @prepare_failed = false
+        @verify_failed  = false
       end
 
-      def record_prepare(key, ok)
-        @prepare_checks[key] = ok
+      def mark_prepare_failed!
+        @prepare_failed = true
       end
 
-      def record_verify(key, ok)
-        @verify_checks[key] = ok
-      end
-
-      def record_time(key, seconds)
-        @timings[key] = seconds
+      def mark_verify_failed!
+        @verify_failed = true
       end
 
       def failed?
-        (@prepare_checks.values + @verify_checks.values).any? { |v| v == false }
+        @prepare_failed || @verify_failed
       end
     end
   end

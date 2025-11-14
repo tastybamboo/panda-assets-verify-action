@@ -1,5 +1,5 @@
 name: 'Panda Asset Verification'
-description: 'Compile + verify Panda assets for Core + all registered modules'
+description: 'Compiles + verifies Panda assets for any engine using a dummy app'
 
 inputs:
   dummy_root:
@@ -15,6 +15,12 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        bundler-cache: false
+
     - name: Run Panda asset pipeline
       id: run_pipeline
       shell: bash
@@ -33,5 +39,4 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: panda-assets-report
-        path: ${{ inputs.dummy_root }}/tmp/panda_assets_report.html
-        retention-days: 7
+        path: $GITHUB_WORKSPACE/${{ inputs.dummy_root }}/tmp/panda_assets_report.html

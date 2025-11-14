@@ -1,69 +1,55 @@
 # frozen_string_literal: true
 
+require "erb"
+require "fileutils"
+
 module Panda
   module Assets
-    class HTMLReport
-      def self.write!(summary)
-        html = new(summary).render
-        File.write("panda-assets-report.html", html)
+    module HtmlReport
+      module_function
+
+      def write!(summary, output_path)
+        html = render(summary)
+
+        FileUtils.mkdir_p(File.dirname(output_path))
+        File.write(output_path, html)
+
+        puts "📄 HTML report written to: #{output_path}"
       end
 
-      def initialize(summary)
-        @summary = summary
-      end
-
-      def render
+      def render(summary)
         <<~HTML
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Panda Asset Verification</title>
-          <style>
-            body { font-family: -apple-system, sans-serif; margin: 2rem; }
-            .ok { color: #16a34a; }
-            .fail { color: #dc2626; font-weight: bold; }
-            .section { margin-bottom: 2rem; }
-            .heading { font-size: 1.4rem; font-weight: 600; margin-bottom: .5rem; }
-            .code { font-family: monospace; background: #f3f4f6; padding: 4px 6px; border-radius: 4px; }
-          </style>
-        </head>
-        <body>
-          <h1>Panda Asset Verification</h1>
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>Panda Asset Verification Report</title>
+            <style>
+              body { font-family: system-ui, sans-serif; padding: 2rem; line-height: 1.6; }
+              h1 { font-size: 1.8rem; }
+              .ok { color: #16a34a; }
+              .fail { color: #dc2626; }
+              pre { background: #f3f4f6; padding: 1rem; border-radius: .25rem; white-space: pre-wrap; }
+            </style>
+          </head>
+          <body>
 
-          <div class="section">
-            <div class="heading">Prepare Phase</div>
-            #{render_checks(@summary.prepare_checks)}
-          </div>
+            <h1>Panda Asset Verification Report</h1>
 
-          <div class="section">
-            <div class="heading">Verify Phase</div>
-            #{render_checks(@summary.verify_checks)}
-          </div>
+            <h2>Status</h2>
+            <p class="#{summary.failed? ? "fail" : "ok"}">
+              #{summary.failed? ? "FAIL" : "PASS"}
+            </p>
 
-          <div class="section">
-            <div class="heading">Timings</div>
-            <ul>
-              #{render_timings}
-            </ul>
-          </div>
+            <h2>Preparation Log</h2>
+            <pre>#{ERB::Util.html_escape(summary.prepare_log)}</pre>
 
-          <p>Status: <span class="#{@summary.failed? ? 'fail' : 'ok'}">#{@summary.failed? ? "FAILED" : "OK"}</span></p>
-        </body>
-        </html>
+            <h2>Verification Log</h2>
+            <pre>#{ERB::Util.html_escape(summary.verify_log)}</pre>
+
+          </body>
+          </html>
         HTML
-      end
-
-      def render_checks(checks)
-        list = checks.map do |k, ok|
-          "<li>#{k}: <span class='#{ok ? "ok" : "fail"}'>#{ok ? "OK" : "FAIL"}</span></li>"
-        end.join("\n")
-
-        "<ul>#{list}</ul>"
-      end
-
-      def render_timings
-        @summary.timings.map { |k, t| "<li>#{k}: #{t.round(2)}s</li>" }.join("\n")
       end
     end
   end

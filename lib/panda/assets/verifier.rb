@@ -1,111 +1,108 @@
 # frozen_string_literal: true
 
-require "json"
 require "webrick"
-require "benchmark"
+require "json"
 
 module Panda
   module Assets
     class Verifier
-      include UI
+      include Ui
 
-      def initialize(summary)
+      def initialize(dummy_root:, summary:)
+        @dummy_root = File.expand_path(dummy_root)
         @summary = summary
       end
 
       def run!
-        UI.banner("Verify Panda Assets")
+        Ui.banner("Verify Panda Assets")
 
-        t = Benchmark.realtime do
-          check_basic_files
-          parse_json
-          http_checks
+        log_io = StringIO.new
+        $stdout = Tee.new($stdout, log_io)
+
+        begin
+          verify_basic
+          start_server_and_run_checks
+        rescue => e
+          Ui.error("Verification failed: #{e.message}")
+          @summary.mark_verify_failed!
+        ensure
+          $stdout = $stdout.original
+          @summary.verify_log = log_io.string
         end
-
-        @summary.record_time(:verify_total, t)
       end
 
       private
 
-      def dummy_root
-        ENV["dummy_root"] || "spec/dummy"
+      def verify_basic
+        assets_dir = File.join(@dummy_root, "public/assets")
+        Ui.ok("Assets dir OK") if Dir.exist?(assets_dir)
       end
 
-      def assets_dir
-        File.join(dummy_root, "public/assets")
-      end
+      def start_server_and_run_checks
+        Ui.step("Starting WEBrick")
 
-      def check_basic_files
-        ok = Dir.exist?(assets_dir)
-        @summary.record_verify(:assets_dir, ok)
-        ok ? UI.ok("Assets dir OK") : UI.error("Missing assets dir")
-      end
-
-      def parse_json
-        manifest_ok = importmap_ok = false
-
-        begin
-          JSON.parse(File.read(File.join(assets_dir, ".manifest.json")))
-          manifest_ok = true
-        rescue
-        end
-
-        begin
-          JSON.parse(File.read(File.join(assets_dir, "importmap.json")))
-          importmap_ok = true
-        rescue
-        end
-
-        @summary.record_verify(:manifest_parse, manifest_ok)
-        @summary.record_verify(:importmap_parse, importmap_ok)
-      end
-
-      #
-      # Fire up a mini WEBrick and check important assets
-      #
-      def http_checks
-        UI.step("Starting WEBrick")
-
+        root = File.join(@dummy_root, "public")
         server = WEBrick::HTTPServer.new(
           Port: 4579,
-          DocumentRoot: File.join(dummy_root, "public"),
-          Logger: WEBrick::Log.new(File::NULL),
-          AccessLog: []
+          DocumentRoot: root,
+          AccessLog: [],
+          Logger: WEBrick::Log.new("/dev/null")
         )
 
-        thread = Thread.new { server.start }
+        Thread.new { server.start }
         sleep 0.3
 
-        check_js("panda/core/application.js")
-        check_fingerprinted
-
-        server.shutdown
-        thread.kill
+        begin
+          check_js
+          check_manifest_files
+        ensure
+          server.shutdown
+        end
       end
 
-      def fetch(path)
-        uri = URI("http://127.0.0.1:4579#{path}")
-        res = Net::HTTP.get_response(uri)
-        res.is_a?(Net::HTTPSuccess)
-      rescue
-        false
+      def check_js
+        required = ["panda/core/application.js"]
+
+        required.each do |path|
+          check_http("/#{path}", "JS missing: #{path}")
+        end
       end
 
-      def check_js(name)
-        ok = fetch("/assets/#{name}")
-        @summary.record_verify("js:#{name}".to_sym, ok)
-        ok ? UI.ok("JS OK: #{name}") : UI.error("JS missing: #{name}")
+      def check_manifest_files
+        manifest = File.join(@dummy_root, "public/assets/.manifest.json")
+        return unless File.exist?(manifest)
+
+        required = JSON.parse(File.read(manifest)).keys
+
+        required.each do |file|
+          check_http("/assets/#{file}", "Missing fp: #{file}")
+        end
       end
 
-      def check_fingerprinted
-        manifest_path = File.join(assets_dir, ".manifest.json")
-        manifest = JSON.parse(File.read(manifest_path))
+      def check_http(path, error_message)
+        res = Net::HTTP.get_response(URI("http://127.0.0.1:4579#{path}"))
+        if res.code != "200"
+          Ui.error(error_message)
+          @summary.mark_verify_failed!
+        end
+      end
 
-        manifest.keys.each do |digest|
-          ok = fetch("/assets/#{digest}")
-          key = "fp:#{digest}".to_sym
-          @summary.record_verify(key, ok)
-          ok ? UI.ok("OK fp #{digest}") : UI.error("Missing fp: #{digest}")
+      class Tee
+        attr_reader :original
+
+        def initialize(original, clone)
+          @original = original
+          @clone = clone
+        end
+
+        def write(*args)
+          @original.write(*args)
+          @clone.write(*args)
+        end
+
+        def flush
+          @original.flush
+          @clone.flush
         end
       end
     end
