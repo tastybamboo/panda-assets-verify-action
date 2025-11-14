@@ -24,9 +24,8 @@ outputs:
 
 runs:
   using: 'composite'
-
   steps:
-    - name: Run Panda asset verification
+    - name: Run Panda asset pipeline
       id: run_pipeline
       shell: bash
       run: |
@@ -36,8 +35,8 @@ runs:
         RUNNER="$GITHUB_ACTION_PATH/lib/panda/assets/runner.rb"
 
         ruby "$RUNNER" --dummy "$DUMMY_PATH"
-
         STATUS=$?
+
         if [ "$STATUS" -eq 0 ]; then
           echo "result=PASS" >> "$GITHUB_OUTPUT"
         else
@@ -46,14 +45,12 @@ runs:
 
         # Emit machine-readable JSON summary
         if [ -f "$DUMMY_PATH/tmp/panda_assets_summary.json" ]; then
-          JSON=$(cat "$DUMMY_PATH/tmp/panda_assets_summary.json")
           echo "summary_json<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$JSON" >> "$GITHUB_OUTPUT"
+          cat "$DUMMY_PATH/tmp/panda_assets_summary.json" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
         fi
 
-        echo "summary_json=$(cat "$GITHUB_WORKSPACE/summary.json")" >> "$GITHUB_OUTPUT"
-        echo "report_path=$GITHUB_WORKSPACE/spec/dummy/tmp/panda_assets_report.html" >> "$GITHUB_OUTPUT"
+        echo "report_path=$DUMMY_PATH/tmp/panda_assets_report.html" >> "$GITHUB_OUTPUT"
 
     - name: Upload Panda assets HTML report
       if: always()
