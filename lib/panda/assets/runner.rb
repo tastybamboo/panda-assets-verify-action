@@ -4,21 +4,21 @@ require "pathname"
 ROOT = Pathname.new(__dir__).expand_path
 $LOAD_PATH.unshift(ROOT.to_s)
 
+# lib/panda/assets/runner.rb
+# frozen_string_literal: true
+
 require "benchmark"
 require_relative "ui"
 require_relative "summary"
 require_relative "html_report"
-require_relative "json_summary"
 require_relative "preparer"
 require_relative "verifier"
 
 module Panda
   module Assets
     class Runner
-      class << self
-        def run_all!(dummy_root:)
-          new(dummy_root:).run_all!
-        end
+      def self.run_all!(dummy_root:)
+        new(dummy_root:).run_all!
       end
 
       def initialize(dummy_root:)
@@ -26,48 +26,41 @@ module Panda
         @summary = Summary.new
       end
 
-      attr_reader :summary
-
       def run_all!
-        UI.banner("Prepare Panda Assets")
-
         begin
+          UI.banner("Prepare Panda Assets")
           prepare!
         rescue => e
-          summary.add_error("prepare_exception", e.message)
+          @summary.add_prepare_error("Exception: #{e.message}")
         end
 
-        UI.banner("Verify Panda Assets")
-
         begin
+          UI.banner("Verify Panda Assets")
           verify!
         rescue => e
-          summary.add_error("verify_exception", e.message)
+          @summary.add_verify_error("Exception: #{e.message}")
         end
 
       ensure
-        summary.to_stdout!
-
-        report_path = File.join(@dummy_root, "tmp", "panda_assets_report.html")
-        HTMLReport.write!(summary, report_path)
-
-        json_path = File.join(@dummy_root, "tmp", "panda_assets_summary.json")
-        JSONSummary.write!(summary, json_path)
+        write_outputs!
       end
 
       def prepare!
-        UI.step("Compiling Propshaft assets")
-
-        t = Benchmark.realtime do
-          Preparer.new(dummy_root: @dummy_root, summary: @summary).run
-        end
-
-        summary.timings[:prepare] = t
-        UI.ok("Compiled propshaft assets") if summary.prepare_ok?
+        Preparer.new(dummy_root: @dummy_root, summary: @summary).run
       end
 
       def verify!
         Verifier.new(dummy_root: @dummy_root, summary: @summary).run
+      end
+
+      def write_outputs!
+        json_path   = File.join(@dummy_root, "tmp/panda_assets_summary.json")
+        report_path = File.join(@dummy_root, "tmp/panda_assets_report.html")
+
+        @summary.write_json!(json_path)
+        HTMLReport.write!(@summary, report_path)
+
+        UI.banner("Final Result", status: @summary.failed? ? :fail : :ok)
       end
     end
   end
