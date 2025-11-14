@@ -20,12 +20,15 @@ module Panda
       end
 
       def run_all!
+        Dir.chdir(ENV["GITHUB_WORKSPACE"]) if ENV["GITHUB_WORKSPACE"]
+
         summary = Summary.new
 
         Preparer.new(summary).run!
         Verifier.new(summary).run!
 
-        HTMLReport.write!(summary)
+        report_path = File.join(@dummy_root, "tmp", "panda_assets_report.html")
+        HTMLReport.write!(summary, report_path)
 
         if summary.failed?
           UI.error("Panda asset pipeline FAILED")
