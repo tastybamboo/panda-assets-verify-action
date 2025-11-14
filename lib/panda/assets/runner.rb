@@ -18,10 +18,8 @@ module Panda
       # --- CLASS API FOR GITHUB ACTIONS ---
       #
       class << self
-        # API used in the GitHub Action
-        #
+        # Example usage in GitHub Action:
         #   Panda::Assets::Runner.run_all!(dummy_root: "/path/to/dummy")
-        #
         def run_all!(dummy_root:)
           new(dummy_root:).run_all!
         end
@@ -38,55 +36,59 @@ module Panda
       attr_reader :summary
 
       #
-      # --- MAIN PIPELINE ENTRYPOINT ---
-      #
-      # Ensures the HTML report *always* gets written even if assets are missing.
+      # --- MAIN PIPELINE ---
       #
       def run_all!
         UI.banner("Prepare Panda Assets")
-
-        begin
-          prepare!
-        rescue => e
-          @summary.add_error("prepare_exception", e.message)
-        end
+        prepare_phase
 
         UI.banner("Verify Panda Assets")
-
-        begin
-          verify!
-        rescue => e
-          @summary.add_error("verify_exception", e.message)
-        end
+        verify_phase
 
       ensure
-        # Always generate the report, even in catastrophic failure.
-        HTMLReport.write!(summary, @dummy_root)
+        # Always print console summary
+        summary.to_stdout!
+
+        # Always write HTML report
+        report_path = File.join(@dummy_root, "tmp", "panda_assets_report.html")
+        FileUtils.mkdir_p(File.dirname(report_path))
+        HTMLReport.write!(summary, report_path)
       end
 
       #
       # --- PREPARE PHASE ---
       #
-      def prepare!
+      def prepare_phase
         UI.step("Compiling Propshaft assets")
 
         propshaft_t = Benchmark.realtime do
-          Preparer.new(dummy_root: @dummy_root, summary: @summary).run
+          begin
+            Preparer.new(dummy_root: @dummy_root, summary: summary).run
+          rescue => e
+            summary.prepare_log << "EXCEPTION: #{e.message}\n"
+            summary.mark_prepare_failed!
+          end
         end
 
-        summary.timings[:prepare_propshaft] = propshaft_t
-        UI.ok("Compiled propshaft assets") if summary.prepare_ok?
+        summary.prepare_log << "Prepare phase completed in #{propshaft_t.round(2)}s\n"
 
-        # Even on failure, continue — verification may reveal more problems.
-        true
+        if summary.failed?
+          UI.error("Prepare phase FAILED")
+        else
+          UI.ok("Compiled propshaft assets")
+        end
       end
 
       #
       # --- VERIFY PHASE ---
       #
-      def verify!
-        verifier = Verifier.new(dummy_root: @dummy_root, summary: @summary)
-        verifier.run
+      def verify_phase
+        begin
+          Verifier.new(dummy_root: @dummy_root, summary: summary).run
+        rescue => e
+          summary.verify_log << "EXCEPTION: #{e.message}\n"
+          summary.mark_verify_failed!
+        end
       end
     end
   end

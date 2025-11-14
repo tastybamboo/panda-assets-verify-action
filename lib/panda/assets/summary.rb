@@ -6,8 +6,8 @@ module Panda
       attr_accessor :prepare_log, :verify_log
 
       def initialize
-        @prepare_log = +""
-        @verify_log  = +""
+        @prepare_log   = +""
+        @verify_log    = +""
         @prepare_failed = false
         @verify_failed  = false
       end
@@ -22,6 +22,42 @@ module Panda
 
       def failed?
         @prepare_failed || @verify_failed
+      end
+
+      #
+      # Print a clean summary to STDOUT (GitHub Actions log friendly)
+      #
+      def to_stdout!
+        puts
+        puts "────────────────────────────────────────"
+        puts " Panda Assets Verification Summary"
+        puts "────────────────────────────────────────"
+
+        puts " Prepare: #{@prepare_failed ? "FAILED" : "OK"}"
+        puts " Verify:  #{@verify_failed ? "FAILED" : "OK"}"
+        puts
+
+        if @prepare_failed
+          puts " Prepare log:"
+          puts indent(@prepare_log)
+          puts
+        end
+
+        if @verify_failed
+          puts " Verify log:"
+          puts indent(@verify_log)
+          puts
+        end
+
+        puts "────────────────────────────────────────"
+        puts failed? ? " FINAL RESULT: FAIL" : " FINAL RESULT: PASS"
+        puts "────────────────────────────────────────"
+      end
+
+      private
+
+      def indent(text)
+        text.split("\n").map { |l| "   #{l}" }.join("\n")
       end
     end
   end
