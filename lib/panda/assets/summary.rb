@@ -4,12 +4,25 @@ module Panda
   module Assets
     class Summary
       attr_accessor :prepare_log, :verify_log
+      attr_reader :timings
 
       def initialize
-        @prepare_log   = +""
-        @verify_log    = +""
+        @prepare_log = +""
+        @verify_log  = +""
         @prepare_failed = false
         @verify_failed  = false
+        @timings = {}
+      end
+
+      def add_error(type, msg)
+        case type
+        when /prepare/
+          @prepare_log << "ERROR: #{msg}\n"
+          @prepare_failed = true
+        when /verify/
+          @verify_log << "ERROR: #{msg}\n"
+          @verify_failed = true
+        end
       end
 
       def mark_prepare_failed!
@@ -20,44 +33,35 @@ module Panda
         @verify_failed = true
       end
 
+      def prepare_ok?
+        !@prepare_failed
+      end
+
+      def verify_ok?
+        !@verify_failed
+      end
+
       def failed?
         @prepare_failed || @verify_failed
       end
 
       #
-      # Print a clean summary to STDOUT (GitHub Actions log friendly)
+      # Console summary for CI logs
       #
       def to_stdout!
-        puts
-        puts "────────────────────────────────────────"
+        puts "\n────────────────────────────────────────"
         puts " Panda Assets Verification Summary"
         puts "────────────────────────────────────────"
 
-        puts " Prepare: #{@prepare_failed ? "FAILED" : "OK"}"
-        puts " Verify:  #{@verify_failed ? "FAILED" : "OK"}"
-        puts
+        puts " Prepare: #{prepare_ok? ? "OK" : "FAILED"}"
+        puts " Verify:  #{verify_ok? ? "OK" : "FAILED"}"
 
-        if @prepare_failed
-          puts " Prepare log:"
-          puts indent(@prepare_log)
-          puts
-        end
-
-        if @verify_failed
-          puts " Verify log:"
-          puts indent(@verify_log)
-          puts
-        end
+        puts "\n--- Prepare log ---\n#{@prepare_log}" unless @prepare_log.empty?
+        puts "\n--- Verify log ---\n#{@verify_log}" unless @verify_log.empty?
 
         puts "────────────────────────────────────────"
         puts failed? ? " FINAL RESULT: FAIL" : " FINAL RESULT: PASS"
         puts "────────────────────────────────────────"
-      end
-
-      private
-
-      def indent(text)
-        text.split("\n").map { |l| "   #{l}" }.join("\n")
       end
     end
   end

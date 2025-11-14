@@ -1,0 +1,19 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/panda/assets/runner"
+
+dummy = nil
+
+ARGV.each_with_index do |arg, i|
+  if arg == "--dummy"
+    dummy = ARGV[i+1]
+  end
+end
+
+unless dummy
+  warn "Usage: panda-assets --dummy /path/to/dummy"
+  exit 1
+end
+
+Panda::Assets::Runner.run_all!(dummy_root: dummy)

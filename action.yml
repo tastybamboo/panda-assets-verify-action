@@ -1,5 +1,9 @@
 name: 'Panda Asset Verification'
-description: 'Compile + verify Panda assets for Core + all registered modules'
+description: 'Compile + verify Panda assets for Panda Core and all modules'
+author: 'tastybamboo'
+branding:
+  icon: 'check-circle'
+  color: 'purple'
 
 inputs:
   dummy_root:
@@ -11,27 +15,150 @@ outputs:
   result:
     description: 'PASS or FAIL'
     value: ${{ steps.run_pipeline.outputs.result }}
+  summary_json:
+    description: 'Pipeline summary as JSON'
+    value: ${{ steps.run_pipeline.outputs.summary_json }}
+  report_path:
+    description: 'Path to generated HTML report'
+    value: ${{ steps.run_pipeline.outputs.report_path }}
 
 runs:
   using: 'composite'
+
   steps:
-    - name: Run Panda asset pipeline
+    - name: Run Panda asset verification
       id: run_pipeline
       shell: bash
       run: |
-        ruby "$GITHUB_ACTION_PATH/lib/panda/assets/runner.rb" \
-          --dummy "$GITHUB_WORKSPACE/${{ inputs.dummy_root }}"
-        status=$?
-        if [ "$status" -eq 0 ]; then
-          echo "result=PASS" >> $GITHUB_OUTPUT
+        set -euo pipefail
+
+        DUMMY_PATH="$GITHUB_WORKSPACE/${{ inputs.dummy_root }}"
+        RUNNER="$GITHUB_ACTION_PATH/lib/panda/assets/runner.rb"
+
+        ruby "$RUNNER" --dummy "$DUMMY_PATH"
+
+        STATUS=$?
+        if [ "$STATUS" -eq 0 ]; then
+          echo "result=PASS" >> "$GITHUB_OUTPUT"
         else
-          echo "result=FAIL" >> $GITHUB_OUTPUT
+          echo "result=FAIL" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Upload Panda asset report
+        # Emit machine-readable JSON summary
+        if [ -f "$DUMMY_PATH/tmp/panda_assets_summary.json" ]; then
+          JSON=$(cat "$DUMMY_PATH/tmp/panda_assets_summary.json")
+          echo "summary_json<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$JSON" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+        fi
+
+        echo "summary_json=$(cat "$GITHUB_WORKSPACE/summary.json")" >> "$GITHUB_OUTPUT"
+        echo "report_path=$GITHUB_WORKSPACE/spec/dummy/tmp/panda_assets_report.html" >> "$GITHUB_OUTPUT"
+
+    - name: Upload Panda assets HTML report
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: panda-assets-report
-        path: $GITHUB_WORKSPACE/${{ inputs.dummy_root }}/tmp/panda_assets_report.html
+        path: ${{ inputs.dummy_root }}/tmp/panda_assets_report.html
         if-no-files-found: warn
+
+    - name: Upload Panda assets JSON summary
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: panda-assets-summary
+        path: ${{ inputs.dummy_root }}/tmp/panda_assets_summary.json
+        if-no-files-found: warn
+
+    - name: Annotate PR with asset errors
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const summaryJson = `${{ steps.run_pipeline.outputs.summary_json }}`.trim();
+          if (!summaryJson) {
+            core.warning("No summary JSON found — skipping annotations.");
+            return;
+          }
+
+          let data;
+          try {
+            data = JSON.parse(summaryJson);
+          } catch (e) {
+            core.warning("Could not parse JSON summary: " + e.message);
+            return;
+          }
+
+          function annotate(category, errors) {
+            if (!errors || errors.length === 0) return;
+
+            for (const err of errors) {
+              core.error(`[${category.toUpperCase()}] ${err}`, {
+                file: "spec/dummy",
+                title: `Panda Assets ${category} error`
+              });
+            }
+          }
+
+          annotate("prepare",   data.prepare?.errors);
+          annotate("verify",    data.verify?.errors);
+
+    - name: Create GitHub Check Run
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const result   = "${{ steps.run_pipeline.outputs.result }}".trim();
+          const summaryJson = `${{ steps.run_pipeline.outputs.summary_json }}`.trim();
+          const reportPath  = "${{ steps.run_pipeline.outputs.report_path }}".trim();
+
+          let data = {};
+          try {
+            data = JSON.parse(summaryJson);
+          } catch (e) {
+            core.warning("Could not parse summary JSON: " + e.message);
+          }
+
+          const conclusion = result === "PASS" ? "success" : "failure";
+          const title = result === "PASS" ? "✔ Panda Assets Verified" : "✖ Panda Asset Verification Failed";
+
+          //
+          // Build detailed text for check run UI
+          //
+          let text = "### 🐼 Panda Asset Verification\n\n";
+          text += `**Prepare:** ${data.prepare?.ok ? "🟩 PASS" : "🟥 FAIL"}\n`;
+          text += `**Verify:** ${data.verify?.ok ? "🟩 PASS" : "🟥 FAIL"}\n\n`;
+          text += `**Final:** ${result === "PASS" ? "🟩 PASS" : "🟥 FAIL"}\n\n`;
+
+          if (data.prepare?.errors?.length) {
+            text += "#### ❌ Prepare Errors\n";
+            for (const e of data.prepare.errors) text += `- ${e}\n`;
+            text += "\n";
+          }
+
+          if (data.verify?.errors?.length) {
+            text += "#### ❌ Verification Errors\n";
+            for (const e of data.verify.errors) text += `- ${e}\n`;
+            text += "\n";
+          }
+
+          text += `#### 📄 Report\n`;
+          text += `HTML report generated at: \`${reportPath}\`\n`;
+
+          //
+          // Create the check run
+          //
+          const check = await github.rest.checks.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            name: "Panda Asset Verification",
+            head_sha: context.sha,
+            status: "completed",
+            conclusion,
+            output: {
+              title,
+              summary: text,
+              text
+            }
+          });

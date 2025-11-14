@@ -5,76 +5,81 @@ require "fileutils"
 module Panda
   module Assets
     class Preparer
-      include Ui
-
       def initialize(dummy_root:, summary:)
-        @dummy_root = File.expand_path(dummy_root)
+        @dummy_root = dummy_root
         @summary = summary
+
+        @dummy_app = File.expand_path(dummy_root)
+        @public_assets = File.join(@dummy_app, "public", "panda-core-assets")
+        @dummy_js = File.join(@dummy_app, "app", "javascript", "panda", "core")
       end
 
-      def run!
-        Ui.banner("Prepare Panda Assets")
-
-        # Capture all output
-        log_io = StringIO.new
-        $stdout = Tee.new($stdout, log_io)
-
-        begin
-          compile_propshaft
-          copy_engine_js
-          generate_importmap
-        rescue => e
-          Ui.error("Preparation failed: #{e.message}")
-          @summary.mark_prepare_failed!
-        ensure
-          $stdout = $stdout.original
-          @summary.prepare_log = log_io.string
-        end
+      def run
+        compile_propshaft!
+        copy_js!
+        generate_importmap!
       end
 
       private
 
-      def compile_propshaft
-        Ui.step("Compiling Propshaft assets")
-        system("bin/rails assets:precompile") or raise "Propshaft failed"
-        Ui.ok("Compiled propshaft assets")
-      end
+      #
+      # 1. Compile Propshaft (Ruby-only — no Node needed)
+      #
+      def compile_propshaft!
+        out = +""
 
-      def copy_engine_js
-        Ui.step("Copying engine JS")
-        src = File.join(Dir.pwd, "app/javascript/panda")
-        dest = File.join(@dummy_root, "app/javascript/panda")
-        FileUtils.mkdir_p(dest)
-        FileUtils.cp_r("#{src}/.", dest)
-        Ui.ok("Copied JS")
-      end
+        Dir.chdir(@dummy_app) do
+          out << `bundle exec rails assets:clobber 2>&1`
+          out << `bundle exec rails assets:precompile 2>&1`
+        end
 
-      def generate_importmap
-        Ui.step("Generating importmap.json")
-        system("bin/rails importmap:json") or raise "Failed importmap generation"
-        Ui.ok("Generated importmap")
+        @summary.prepare_log << out
+
+        unless Dir.exist?(@public_assets)
+          @summary.prepare_log << "ERROR: No compiled assets found\n"
+          @summary.mark_prepare_failed!
+        end
       end
 
       #
-      # Used to clone stdout and capture logs
+      # 2. Copy JS from engine -> dummy
       #
-      class Tee
-        attr_reader :original
+      def copy_js!
+        engine_js = File.expand_path("../../../../app/javascript/panda/core", __dir__)
 
-        def initialize(original, clone)
-          @original = original
-          @clone = clone
+        unless Dir.exist?(engine_js)
+          @summary.prepare_log << "WARNING: Engine JS not found at #{engine_js}\n"
+          return
         end
 
-        def write(*args)
-          @original.write(*args)
-          @clone.write(*args)
-        end
+        FileUtils.mkdir_p(@dummy_js)
+        FileUtils.cp_r("#{engine_js}/.", @dummy_js)
 
-        def flush
-          @original.flush
-          @clone.flush
-        end
+        @summary.prepare_log << "Copied JS from #{engine_js} to #{@dummy_js}\n"
+      rescue => e
+        @summary.prepare_log << "ERROR copying JS: #{e.message}\n"
+        @summary.mark_prepare_failed!
+      end
+
+      #
+      # 3. Generate importmap.json inside dummy app
+      #
+      def generate_importmap!
+        importmap_path = File.join(@dummy_app, "public", "assets", "importmap.json")
+        FileUtils.mkdir_p(File.dirname(importmap_path))
+
+        importmap_hash = {
+          imports: {
+            "panda-core/application" => "/panda/core/application.js"
+          }
+        }
+
+        File.write(importmap_path, JSON.pretty_generate(importmap_hash))
+
+        @summary.prepare_log << "Generated importmap.json\n"
+      rescue => e
+        @summary.prepare_log << "ERROR generating importmap.json: #{e.message}\n"
+        @summary.mark_prepare_failed!
       end
     end
   end

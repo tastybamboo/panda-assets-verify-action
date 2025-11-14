@@ -8,103 +8,47 @@ module Panda
     class HTMLReport
       TEMPLATE = <<~HTML
         <!DOCTYPE html>
-        <html lang="en">
+        <html>
         <head>
-          <meta charset="utf-8" />
-          <title>Panda Asset Verification Report</title>
+          <meta charset="UTF-8">
+          <title>Panda Asset Verification</title>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; margin: 2rem; }
-            h1 { font-size: 1.6rem; margin-bottom: 1rem; }
-            h2 { font-size: 1.3rem; margin-top: 2rem; }
-            .ok { color: #0a0; }
-            .fail { color: #c00; }
-            table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-            th, td { border: 1px solid #ddd; padding: 0.5rem; }
-            th { background: #f8f8f8; text-align: left; }
-            .section { margin-bottom: 2rem; }
+            body { font-family: sans-serif; margin: 40px; }
+            .section { padding: 20px; border-radius: 8px; margin-bottom: 32px; border: 1px solid #ddd; }
+            h1 { font-size: 28px; }
+            h2 { font-size: 20px; margin-bottom: 10px; }
+            pre { background: #f8f8f8; padding: 12px; border-radius: 6px; overflow-x: auto; }
+            .ok { color: #059669; font-weight: bold; }
+            .fail { color: #dc2626; font-weight: bold; }
           </style>
         </head>
         <body>
           <h1>Panda Asset Verification Report</h1>
 
           <div class="section">
-            <h2>Overall Status</h2>
-            <p>
-              <% if summary.failed? %>
-                <strong class="fail">FAIL</strong>
-              <% else %>
-                <strong class="ok">PASS</strong>
-              <% end %>
+            <h2>Result</h2>
+            <p class="<%= summary.failed? ? "fail" : "ok" %>">
+              <%= summary.failed? ? "FAIL" : "PASS" %>
             </p>
           </div>
 
           <div class="section">
-            <h2>Summary</h2>
-            <table>
-              <thead>
-                <tr><th>Category</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                <% summary.categories.each do |category, status| %>
-                  <tr>
-                    <td><%= category %></td>
-                    <td class="<%= status ? "ok" : "fail" %>">
-                      <%= status ? "OK" : "FAIL" %>
-                    </td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
+            <h2>Prepare Phase</h2>
+            <pre><%= summary.prepare_log %></pre>
           </div>
 
           <div class="section">
-            <h2>Errors</h2>
-            <% if summary.errors.empty? %>
-              <p class="ok">No errors.</p>
-            <% else %>
-              <ul>
-                <% summary.errors.each do |err| %>
-                  <li class="fail"><%= err %></li>
-                <% end %>
-              </ul>
-            <% end %>
+            <h2>Verify Phase</h2>
+            <pre><%= summary.verify_log %></pre>
           </div>
-
-          <div class="section">
-            <h2>Timings</h2>
-            <table>
-              <thead>
-                <tr><th>Step</th><th>Seconds</th></tr>
-              </thead>
-              <tbody>
-                <% summary.timings.each do |key, sec| %>
-                  <tr>
-                    <td><%= key %></td>
-                    <td><%= "%0.2f" % sec %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-
         </body>
         </html>
       HTML
 
-      #
-      # Write HTML file to tmp/panda_assets_report.html under the dummy root
-      #
-      def self.write!(summary, dummy_root)
-        out_dir  = File.join(dummy_root, "tmp")
-        out_file = File.join(out_dir, "panda_assets_report.html")
-
-        FileUtils.mkdir_p(out_dir)
-
+      def self.write!(summary, output_path)
+        FileUtils.mkdir_p(File.dirname(output_path))
         html = ERB.new(TEMPLATE).result(binding)
-
-        File.write(out_file, html)
-
-        puts "📄 HTML report written to #{out_file}"
+        File.write(output_path, html)
       end
     end
   end
