@@ -1,0 +1,36 @@
+name: 'Panda Asset Verification'
+description: 'Compile + verify Panda assets for Core + all registered modules'
+
+inputs:
+  dummy_root:
+    description: 'Path to dummy Rails app'
+    required: false
+    default: 'spec/dummy'
+
+outputs:
+  result:
+    description: 'PASS or FAIL'
+    value: ${{ steps.run_pipeline.outputs.result }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run Panda asset pipeline
+      id: run_pipeline
+      shell: bash
+      run: |
+        ruby "$GITHUB_ACTION_PATH/lib/panda/assets/runner.rb" \
+          --dummy "$GITHUB_WORKSPACE/${{ inputs.dummy_root }}"
+        status=$?
+        if [ "$status" -eq 0 ]; then
+          echo "result=PASS" >> $GITHUB_OUTPUT
+        else
+          echo "result=FAIL" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Upload Panda asset report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: panda-assets-report
+        path: $GITHUB_WORKSPACE/${{ inputs.dummy_root }}/tmp/panda_assets_report.html

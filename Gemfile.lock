@@ -1,0 +1,18 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    benchmark (0.5.0)
+    json (2.16.0)
+    webrick (1.9.1)
+
+PLATFORMS
+  arm64-darwin-25
+  ruby
+
+DEPENDENCIES
+  benchmark
+  json
+  webrick
+
+BUNDLED WITH
+   2.7.2
