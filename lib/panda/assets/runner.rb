@@ -1,4 +1,8 @@
 # frozen_string_literal: true
+require "pathname"
+
+ROOT = Pathname.new(__dir__).expand_path
+$LOAD_PATH.unshift(ROOT.to_s)
 
 require "benchmark"
 require_relative "ui"
