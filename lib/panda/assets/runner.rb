@@ -4,6 +4,7 @@
 $LOAD_PATH.unshift(File.expand_path("../../..", __dir__))
 
 require "benchmark"
+require "optparse"
 require_relative "ui"
 require_relative "preparer"
 require_relative "verifier"
@@ -15,11 +16,17 @@ module Panda
     class Runner
       include UI
 
-      def self.run_all!
-        new.run_all!
+      def self.run_all!(argv = ARGV)
+        new.run_all!(argv)
       end
 
-      def run_all!
+      def initialize
+        @dummy_root = "spec/dummy"
+      end
+
+      def run_all!(argv = ARGV)
+        parse_options!(argv)
+
         Dir.chdir(ENV["GITHUB_WORKSPACE"]) if ENV["GITHUB_WORKSPACE"]
 
         summary = Summary.new
@@ -38,6 +45,28 @@ module Panda
           exit 0
         end
       end
+
+      private
+
+      def parse_options!(argv)
+        OptionParser.new do |opts|
+          opts.banner = "Usage: runner.rb [options]"
+
+          opts.on("--dummy PATH", "Path to dummy Rails app (default: spec/dummy)") do |path|
+            @dummy_root = path
+          end
+
+          opts.on("-h", "--help", "Show this help message") do
+            puts opts
+            exit
+          end
+        end.parse!(argv)
+      end
     end
   end
+end
+
+# Run if called directly
+if __FILE__ == $0
+  Panda::Assets::Runner.run_all!
 end
