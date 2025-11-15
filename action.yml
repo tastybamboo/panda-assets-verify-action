@@ -34,9 +34,19 @@ runs:
         DUMMY_PATH="$GITHUB_WORKSPACE/${{ inputs.dummy_root }}"
         RUNNER="$GITHUB_ACTION_PATH/lib/panda/assets/runner.rb"
 
+        # Install dependencies if needed
+        cd "$GITHUB_ACTION_PATH"
+        if [ -f "Gemfile" ]; then
+          bundle install --quiet || true
+        fi
+        cd "$GITHUB_WORKSPACE"
+
         # Run the Ruby script and capture the exit status
         # Don't exit immediately on failure
-        ruby "$RUNNER" --dummy "$DUMMY_PATH" || STATUS=$?
+        # Use bundle exec to ensure correct gem versions are loaded
+        cd "$GITHUB_ACTION_PATH"
+        bundle exec ruby "$RUNNER" --dummy "$DUMMY_PATH" || STATUS=$?
+        cd "$GITHUB_WORKSPACE"
         STATUS=${STATUS:-0}
 
         if [ "$STATUS" -eq 0 ]; then
