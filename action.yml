@@ -101,6 +101,19 @@ runs:
           annotate("prepare",   data.prepare?.errors);
           annotate("verify",    data.verify?.errors);
 
+    - name: Add report to job summary
+      if: always()
+      shell: bash
+      run: |
+        # Add markdown summary to GitHub job summary
+        MD_PATH="${{ inputs.dummy_root }}/tmp/panda_assets_summary.md"
+        if [ -f "$MD_PATH" ]; then
+          cat "$MD_PATH" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ⚠️ Panda Assets Report" >> $GITHUB_STEP_SUMMARY
+          echo "No summary was generated. Check the logs for errors." >> $GITHUB_STEP_SUMMARY
+        fi
+
     - name: Create GitHub Check Run
       if: always()
       uses: actions/github-script@v7

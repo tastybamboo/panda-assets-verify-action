@@ -6,6 +6,8 @@ module Panda
       module_function
 
       def colour_enabled?
+        # Enable colors in CI environments that support it (like GitHub Actions)
+        return true if ENV["CI"] == "true" && ENV["GITHUB_ACTIONS"] == "true"
         $stdout.tty? && ENV["NO_COLOR"].nil?
       end
 
@@ -87,6 +89,16 @@ module Panda
       # Show progress for operations with multiple items
       def progress(current, total, message = "Processing")
         percentage = (current.to_f / total * 100).round
+
+        # In CI, print simpler progress updates at intervals
+        if ENV["CI"] == "true"
+          # Only print at 25%, 50%, 75%, and 100%
+          if percentage % 25 == 0 || current == total
+            puts "   #{message}: #{current}/#{total} (#{percentage}%)"
+          end
+          return
+        end
+
         bar_width = 30
         filled = (bar_width * current / total).round
         empty = bar_width - filled
@@ -112,6 +124,12 @@ module Panda
         end
 
         def start
+          # In CI, just print the message once instead of animated spinner
+          if ENV["CI"] == "true"
+            puts "   ⏳ #{@message}..."
+            return
+          end
+
           @running = true
           @thread = Thread.new do
             while @running
@@ -123,6 +141,15 @@ module Panda
         end
 
         def stop(success: true, final_message: nil)
+          # In CI, just print the final status
+          if ENV["CI"] == "true"
+            if final_message
+              status = success ? UI.green("✓") : UI.red("✗")
+              puts "   #{status} #{final_message}"
+            end
+            return
+          end
+
           @running = false
           @thread&.join
 

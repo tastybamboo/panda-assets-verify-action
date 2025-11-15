@@ -7,6 +7,7 @@ require "fileutils"
 require_relative "ui"
 require_relative "summary"
 require_relative "html_report"
+require_relative "markdown_summary"
 require_relative "preparer"
 require_relative "verifier"
 
@@ -69,6 +70,7 @@ module Panda
 
         html_path    = File.join(tmp_dir, "panda_assets_report.html")
         json_path    = File.join(tmp_dir, "panda_assets_summary.json")
+        md_path      = File.join(tmp_dir, "panda_assets_summary.md")
 
         # Write HTML report with error handling
         begin
@@ -86,6 +88,15 @@ module Panda
           puts "Error writing JSON summary: #{e.message}"
           # Write minimal JSON
           File.write(json_path, '{"error": "Failed to generate summary", "message": "' + e.message.gsub('"', '\\"') + '"}')
+        end
+
+        # Write Markdown summary for GitHub Actions
+        begin
+          MarkdownSummary.write!(summary, md_path)
+        rescue => e
+          puts "Error writing Markdown summary: #{e.message}"
+          # Write minimal markdown
+          File.write(md_path, "# Error\n\nFailed to generate summary: #{e.message}")
         end
       end
 

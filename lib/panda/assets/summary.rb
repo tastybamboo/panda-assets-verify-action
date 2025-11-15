@@ -27,14 +27,18 @@ module Panda
 
       def add_prepare_log(msg)
         # Ensure UTF-8 encoding and remove any binary characters
-        safe_msg = msg.to_s.force_encoding('UTF-8')
+        # Duplicate the string first to avoid frozen string errors
+        safe_msg = msg.to_s.dup
+        safe_msg.force_encoding('UTF-8')
         safe_msg = safe_msg.valid_encoding? ? safe_msg : safe_msg.encode('UTF-8', invalid: :replace, undef: :replace)
         @prepare[:log] << safe_msg
       end
 
       def add_verify_log(msg)
         # Ensure UTF-8 encoding and remove any binary characters
-        safe_msg = msg.to_s.force_encoding('UTF-8')
+        # Duplicate the string first to avoid frozen string errors
+        safe_msg = msg.to_s.dup
+        safe_msg.force_encoding('UTF-8')
         safe_msg = safe_msg.valid_encoding? ? safe_msg : safe_msg.encode('UTF-8', invalid: :replace, undef: :replace)
         @verify[:log] << safe_msg
       end
