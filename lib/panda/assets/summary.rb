@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
 require "json"
-require_relative "error_helper"
 
 module Panda
   module Assets
     class Summary
-      include ErrorHelper
 
       attr_reader :prepare, :verify, :timings,
                   :version_matrix, :diff_missing, :module_summaries
@@ -124,12 +122,18 @@ module Panda
 
         if prepare_errors.any?
           puts
-          puts error_summary(prepare_errors, "Prepare")
+          puts " Prepare Errors (#{prepare_errors.size}):"
+          prepare_errors.each_with_index do |error, i|
+            puts "   #{i + 1}. #{error}"
+          end
         end
 
         if verify_errors.any?
           puts
-          puts error_summary(verify_errors, "Verify")
+          puts " Verify Errors (#{verify_errors.size}):"
+          verify_errors.each_with_index do |error, i|
+            puts "   #{i + 1}. #{error}"
+          end
         end
 
         puts

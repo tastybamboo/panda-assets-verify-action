@@ -29,13 +29,15 @@ runs:
       id: run_pipeline
       shell: bash
       run: |
-        set -euo pipefail
+        set -uo pipefail  # Remove -e to handle exit codes ourselves
 
         DUMMY_PATH="$GITHUB_WORKSPACE/${{ inputs.dummy_root }}"
         RUNNER="$GITHUB_ACTION_PATH/lib/panda/assets/runner.rb"
 
-        ruby "$RUNNER" --dummy "$DUMMY_PATH"
-        STATUS=$?
+        # Run the Ruby script and capture the exit status
+        # Don't exit immediately on failure
+        ruby "$RUNNER" --dummy "$DUMMY_PATH" || STATUS=$?
+        STATUS=${STATUS:-0}
 
         if [ "$STATUS" -eq 0 ]; then
           echo "result=PASS" >> "$GITHUB_OUTPUT"
@@ -45,8 +47,8 @@ runs:
 
         # Emit machine-readable JSON summary (single line to avoid issues)
         if [ -f "$DUMMY_PATH/tmp/panda_assets_summary.json" ]; then
-          # Compact JSON to single line
-          JSON_COMPACT=$(cat "$DUMMY_PATH/tmp/panda_assets_summary.json" | jq -c '.' 2>/dev/null || cat "$DUMMY_PATH/tmp/panda_assets_summary.json" | tr -d '\n')
+          # Compact JSON to single line - use Ruby for reliability
+          JSON_COMPACT=$(ruby -r json -e "puts JSON.parse(File.read('$DUMMY_PATH/tmp/panda_assets_summary.json')).to_json" 2>/dev/null || cat "$DUMMY_PATH/tmp/panda_assets_summary.json" | tr '\n' ' ')
           echo "summary_json=$JSON_COMPACT" >> "$GITHUB_OUTPUT"
         fi
 

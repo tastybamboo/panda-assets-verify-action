@@ -44,35 +44,24 @@ module Panda
         summary.add_verify_log("Checking basic asset files")
 
         unless Dir.exist?(assets_dir)
-          error_msg = format_error(
-            "Assets directory not found",
-            operation: "Asset Directory Check",
-            path: assets_dir,
-            hint: "Run 'rails assets:precompile' to generate assets"
-          )
           summary.add_verify_error("public/assets missing at #{assets_dir}")
-          summary.add_verify_log(error_msg)
+          summary.add_verify_log("Assets directory not found: #{assets_dir}")
+          summary.add_verify_log("Hint: Run 'rails assets:precompile' to generate assets")
           summary.mark_verify_failed!
           return
         end
 
         unless File.exist?(manifest_path)
-          warning = format_warning(
-            ".manifest.json missing at #{manifest_path}",
-            suggestion: "This file should be created by 'rails assets:precompile'"
-          )
           summary.add_verify_error(".manifest.json missing")
-          summary.add_verify_log(warning)
+          summary.add_verify_log(".manifest.json missing at #{manifest_path}")
+          summary.add_verify_log("This file should be created by 'rails assets:precompile'")
           summary.mark_verify_failed!
         end
 
         unless File.exist?(importmap_path)
-          warning = format_warning(
-            "importmap.json missing at #{importmap_path}",
-            suggestion: "Check that importmap-rails is configured correctly"
-          )
           summary.add_verify_error("importmap.json missing")
-          summary.add_verify_log(warning)
+          summary.add_verify_log("importmap.json missing at #{importmap_path}")
+          summary.add_verify_log("Check that importmap-rails is configured correctly")
           summary.mark_verify_failed!
         end
       end
@@ -93,13 +82,9 @@ module Panda
 
         summary.timings[:verify_json_total] = t
       rescue JSON::ParserError => e
-        error_msg = format_error(
-          "Invalid JSON: #{e.message}",
-          operation: "JSON File Parsing",
-          hint: "Check that manifest and importmap files contain valid JSON"
-        )
         summary.add_verify_error("JSON parse error: #{e.message}")
-        summary.add_verify_log(error_msg)
+        summary.add_verify_log("Invalid JSON: #{e.message}")
+        summary.add_verify_log("Check that manifest and importmap files contain valid JSON")
         summary.mark_verify_failed!
       end
 
@@ -117,13 +102,9 @@ module Panda
 
         summary.mark_verify_ok! if summary.verify_errors.empty?
       rescue => e
-        error_msg = format_error(
-          "#{e.class}: #{e.message}",
-          operation: "HTTP Asset Verification",
-          hint: "Check that the server can start and assets are properly compiled"
-        )
         summary.add_verify_error("HTTP verification failed: #{e.class}: #{e.message}")
-        summary.add_verify_log(error_msg)
+        summary.add_verify_log("#{e.class}: #{e.message}")
+        summary.add_verify_log("Check that the server can start and assets are properly compiled")
         summary.mark_verify_failed!
       end
 
@@ -139,7 +120,20 @@ module Panda
           Logger: WEBrick::Log.new(File::NULL)
         )
 
-        Thread.new { server.start }
+        server_thread = Thread.new do
+          begin
+            server.start
+          rescue => e
+            summary.add_verify_error("Server thread crashed: #{e.class}: #{e.message}")
+            raise e
+          end
+        end
+
+        # Give thread a moment to crash if it's going to
+        sleep 0.1
+        unless server_thread.alive?
+          raise "WEBrick server thread died immediately - check for port conflicts"
+        end
 
         wait_for_server(port)
 
@@ -190,7 +184,10 @@ module Panda
         spinner = UI::Spinner.new("Waiting for server to start on port #{port}")
         spinner.start
 
-        50.times do
+        # In CI, give more time for server startup (15s vs 5s)
+        max_attempts = ENV["CI"] == "true" ? 150 : 50
+
+        max_attempts.times do |attempt|
           begin
             res = Net::HTTP.get_response(URI("http://127.0.0.1:#{port}/"))
             if res.is_a?(Net::HTTPResponse)
@@ -198,13 +195,17 @@ module Panda
               return
             end
           rescue StandardError
+            # Log progress in CI for debugging
+            if ENV["CI"] == "true" && attempt > 0 && attempt % 50 == 0
+              summary.add_verify_log("Still waiting for server... (#{attempt * 0.1}s elapsed)")
+            end
             # keep retrying
           end
           sleep 0.1
         end
 
         spinner.stop(success: false, final_message: "Server failed to start")
-        raise "WEBrick did not start listening on port #{port} in time"
+        raise "WEBrick did not start listening on port #{port} in time (waited #{max_attempts * 0.1}s)"
       end
 
       def http_get(path, port)
