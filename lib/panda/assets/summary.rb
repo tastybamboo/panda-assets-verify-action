@@ -9,8 +9,9 @@ module Panda
       include ErrorHelper
 
       attr_reader :prepare, :verify, :timings,
-                  :version_matrix, :importmap_tree,
-                  :diff_missing, :module_summaries
+                  :version_matrix, :diff_missing, :module_summaries
+
+      attr_accessor :importmap_tree
 
       def initialize
         @prepare = { ok: false, log: [], errors: [] }
