@@ -40,6 +40,13 @@ module Panda
       # - Returns true/false for CI exit code
       #
       def run_all!
+        # In GitHub Actions, redirect UI output to stderr to avoid interfering with outputs
+        original_stdout = nil
+        if ENV["GITHUB_ACTIONS"] == "true"
+          original_stdout = $stdout
+          $stdout = $stderr
+        end
+
         UI.banner("Prepare Panda Assets")
 
         begin
@@ -98,6 +105,9 @@ module Panda
           # Write minimal markdown
           File.write(md_path, "# Error\n\nFailed to generate summary: #{e.message}")
         end
+      ensure
+        # Restore original stdout if we redirected it
+        $stdout = original_stdout if original_stdout
       end
 
       # Prepare phase: compile + copy JS + importmap

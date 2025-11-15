@@ -43,11 +43,11 @@ runs:
           echo "result=FAIL" >> "$GITHUB_OUTPUT"
         fi
 
-        # Emit machine-readable JSON summary
+        # Emit machine-readable JSON summary (single line to avoid issues)
         if [ -f "$DUMMY_PATH/tmp/panda_assets_summary.json" ]; then
-          echo "summary_json<<EOF" >> "$GITHUB_OUTPUT"
-          cat "$DUMMY_PATH/tmp/panda_assets_summary.json" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          # Compact JSON to single line
+          JSON_COMPACT=$(cat "$DUMMY_PATH/tmp/panda_assets_summary.json" | jq -c '.' 2>/dev/null || cat "$DUMMY_PATH/tmp/panda_assets_summary.json" | tr -d '\n')
+          echo "summary_json=$JSON_COMPACT" >> "$GITHUB_OUTPUT"
         fi
 
         echo "report_path=$DUMMY_PATH/tmp/panda_assets_report.html" >> "$GITHUB_OUTPUT"
@@ -73,7 +73,7 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const summaryJson = `${{ steps.run_pipeline.outputs.summary_json }}`.trim();
+          const summaryJson = '${{ steps.run_pipeline.outputs.summary_json }}'.trim();
           if (!summaryJson) {
             core.warning("No summary JSON found — skipping annotations.");
             return;
@@ -120,7 +120,7 @@ runs:
       with:
         script: |
           const result   = "${{ steps.run_pipeline.outputs.result }}".trim();
-          const summaryJson = `${{ steps.run_pipeline.outputs.summary_json }}`.trim();
+          const summaryJson = '${{ steps.run_pipeline.outputs.summary_json }}'.trim();
           const reportPath  = "${{ steps.run_pipeline.outputs.report_path }}".trim();
 
           let data = {};
