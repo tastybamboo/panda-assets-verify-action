@@ -34,19 +34,16 @@ runs:
         DUMMY_PATH="$GITHUB_WORKSPACE/${{ inputs.dummy_root }}"
         RUNNER="$GITHUB_ACTION_PATH/lib/panda/assets/runner.rb"
 
-        # Install dependencies if needed
-        cd "$GITHUB_ACTION_PATH"
-        if [ -f "Gemfile" ]; then
-          bundle install --quiet || true
-        fi
+        # Ensure benchmark gem is available in the workspace bundle
+        # This avoids conflicts between Ruby's default gem and the required version
         cd "$GITHUB_WORKSPACE"
+
+        # Add benchmark to the bundle if needed to avoid version conflicts
+        export RUBYOPT="-rbundler/setup"
 
         # Run the Ruby script and capture the exit status
         # Don't exit immediately on failure
-        # Use bundle exec to ensure correct gem versions are loaded
-        cd "$GITHUB_ACTION_PATH"
-        bundle exec ruby "$RUNNER" --dummy "$DUMMY_PATH" || STATUS=$?
-        cd "$GITHUB_WORKSPACE"
+        ruby "$RUNNER" --dummy "$DUMMY_PATH" || STATUS=$?
         STATUS=${STATUS:-0}
 
         if [ "$STATUS" -eq 0 ]; then
