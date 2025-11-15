@@ -1,0 +1,27 @@
+{
+  "prepare": {
+    "ok": false,
+    "log": [
+      "Compiling Propshaft assets in dummy app"
+    ],
+    "errors": [
+      "Exception in prepare!: Errno::ENOENT: No such file or directory @ dir_chdir0 - /Users/james/Projects/panda/panda-assets-verify-action/spec/dummy"
+    ]
+  },
+  "verify": {
+    "ok": false,
+    "log": [
+      "Checking basic asset files"
+    ],
+    "errors": [
+      "public/assets missing at /Users/james/Projects/panda/panda-assets-verify-action/spec/dummy/public/assets"
+    ]
+  },
+  "timings": {
+    "verify_total": 0.000014000001101521775
+  },
+  "version_matrix": [],
+  "importmap_tree": null,
+  "diff_missing": [],
+  "module_summaries": []
+}

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Panda Asset Verification Report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #111827;
+        --card-soft: #020617;
+        --border: #1f2937;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --green: #22c55e;
+        --red: #ef4444;
+        --yellow: #eab308;
+        --accent: #38bdf8;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: radial-gradient(circle at top, #1e293b 0, #020617 45%, #020617 100%);
+        color: var(--text);
+        font-family: var(--sans);
+      }
+
+      .page {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+
+      .card {
+        background: radial-gradient(circle at top left, #111827 0, #020617 45%);
+        border-radius: 1rem;
+        border: 1px solid var(--border);
+        padding: 1.5rem 2rem;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      }
+
+      .title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 1.4rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0;
+      }
+
+      .pill {
+        border-radius: 999px;
+        padding: 0.25rem 0.9rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: linear-gradient(to right, rgba(37, 99, 235, 0.1), rgba(56, 189, 248, 0.18));
+        color: var(--accent);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+      }
+
+      .metric {
+        background: var(--card-soft);
+        border-radius: 0.75rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--border);
+      }
+
+      .metric-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.25rem;
+      }
+
+      .metric-value {
+        font-size: 0.95rem;
+        font-family: var(--mono);
+      }
+
+      .status-ok {
+        color: var(--green);
+      }
+
+      .status-fail {
+        color: var(--red);
+      }
+
+      .section-title {
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      pre.log {
+        background: #020617;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
+        padding: 0.75rem 1rem;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        max-height: 260px;
+        overflow: auto;
+        color: var(--muted);
+      }
+
+      ul {
+        margin: 0.25rem 0 0.75rem;
+        padding-left: 1.1rem;
+      }
+
+      li {
+        font-size: 0.85rem;
+      }
+
+      code {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        background: rgba(15, 23, 42, 0.9);
+        padding: 0.08rem 0.35rem;
+        border-radius: 0.35rem;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+      }
+
+      .footer {
+        margin-top: 1.5rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        border-top: 1px solid var(--border);
+        padding-top: 0.75rem;
+      }
+
+      .badge {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .badge-ok {
+        color: var(--green);
+      }
+
+      .badge-fail {
+        color: var(--red);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="card">
+        <div class="title-row">
+          <div>
+            <h1>🐼 Panda Asset Verification</h1>
+            <div
+              style="font-size:0.85rem;color:var(--muted);margin-top:0.25rem;"
+            >
+              Rails dummy asset pipeline health check
+            </div>
+          </div>
+          <div class="pill">FAILED</div>
+        </div>
+
+        <div class="grid">
+          <div class="metric">
+            <div class="metric-label">Prepare</div>
+            <div class="metric-value status-fail">
+              FAIL
+            </div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Verify</div>
+            <div class="metric-value status-fail">
+              FAIL
+            </div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Prepare Time</div>
+            <div class="metric-value">
+              0.00s
+            </div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Verify Time</div>
+            <div class="metric-value">
+              0.00s
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Prepare Logs</div>
+
+        <pre class="log">Compiling Propshaft assets in dummy app</pre>
+
+        <div class="section-title">Verify Logs</div>
+
+        <pre class="log">Checking basic asset files</pre>
+
+        
+          <div class="section-title">Prepare Errors</div>
+          <ul>
+            
+              <li><code>PREPARE</code> Exception in prepare!: Errno::ENOENT: No such file or directory @ dir_chdir0 - /Users/james/Projects/panda/panda-assets-verify-action/spec/dummy</li>
+            
+          </ul>
+        
+
+        
+          <div class="section-title">Verify Errors</div>
+          <ul>
+            
+              <li><code>VERIFY</code> public/assets missing at /Users/james/Projects/panda/panda-assets-verify-action/spec/dummy/public/assets</li>
+            
+          </ul>
+        
+
+        
+
+        <div class="footer">
+          <div class="badge badge-fail">
+            Final: FAIL
+          </div>
+          <div>
+            Generated at
+            <code>2025-11-15 00:58:33 UTC</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

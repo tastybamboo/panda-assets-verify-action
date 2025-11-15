@@ -68,16 +68,22 @@ module Panda
       def copy_engine_js
         src_root  = File.join(host_root, "app/javascript/panda")
         dest_root = File.join(dummy_root, "app/javascript/panda")
+        public_dest = File.join(dummy_root, "public/panda")
 
         unless Dir.exist?(src_root)
           summary.add_prepare_log("No engine JS found at #{src_root}, skipping JS copy")
           return
         end
 
+        # Copy to app/javascript for Rails runtime
         FileUtils.mkdir_p(dest_root)
         FileUtils.cp_r(Dir[File.join(src_root, "*")], dest_root)
-
         summary.add_prepare_log("Copied JS from #{src_root} → #{dest_root}")
+
+        # Also copy to public/panda for static verification
+        FileUtils.mkdir_p(public_dest)
+        FileUtils.cp_r(Dir[File.join(src_root, "*")], public_dest)
+        summary.add_prepare_log("Copied JS to public for verification: #{src_root} → #{public_dest}")
       rescue => e
         summary.add_prepare_error("Error copying JS: #{e.class}: #{e.message}")
         summary.add_prepare_log("Source path: #{src_root}")
