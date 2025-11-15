@@ -283,11 +283,23 @@ module Panda
         current = 0
         total = manifest.size
 
-        manifest.each do |logical_path, digested_filename|
+        manifest.each do |logical_path, asset_info|
           current += 1
           UI.progress(current, total, "Checking manifest assets")
 
-          # Propshaft manifest maps logical paths to digested filenames
+          # Propshaft manifest maps logical paths to asset info hashes
+          # Extract the digested_path from the hash
+          digested_filename = if asset_info.is_a?(Hash)
+            asset_info["digested_path"] || asset_info[:digested_path]
+          else
+            asset_info # Fallback for simple string format
+          end
+
+          unless digested_filename
+            summary.add_verify_error("Missing digested_path for #{logical_path}")
+            next
+          end
+
           # We need to check the actual digested file
           http_path = "/assets/#{digested_filename}"
           res = http_get(http_path, port)
