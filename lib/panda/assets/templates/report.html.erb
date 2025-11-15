@@ -216,11 +216,11 @@
 
         <div class="section-title">Prepare Logs</div>
 
-        <pre class="log"><%= (summary.prepare[:log] || []).join("\n") %></pre>
+        <pre class="log"><%= ERB::Util.html_escape((summary.prepare[:log] || []).join("\n").force_encoding('UTF-8')) %></pre>
 
         <div class="section-title">Verify Logs</div>
 
-        <pre class="log"><%= (summary.verify[:log] || []).join("\n") %></pre>
+        <pre class="log"><%= ERB::Util.html_escape((summary.verify[:log] || []).join("\n").force_encoding('UTF-8')) %></pre>
 
         <% if summary.prepare_errors.any? %>
           <div class="section-title">Prepare Errors</div>

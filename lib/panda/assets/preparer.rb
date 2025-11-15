@@ -105,6 +105,15 @@ module Panda
         t = Benchmark.realtime do
           UI.with_spinner("Loading Rails environment and generating importmap") do
             Dir.chdir(dummy_root) do
+              # Set up Bundler to use the parent directory's Gemfile if dummy doesn't have one
+              unless File.exist?(File.join(dummy_root, "Gemfile"))
+                parent_gemfile = File.join(host_root, "Gemfile")
+                if File.exist?(parent_gemfile)
+                  ENV['BUNDLE_GEMFILE'] = parent_gemfile
+                  summary.add_prepare_log("Using parent Gemfile at #{parent_gemfile}")
+                end
+              end
+
               require File.join(dummy_root, "config/environment")
 
               importmap = if Rails.application.respond_to?(:importmap)

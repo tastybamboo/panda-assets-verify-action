@@ -57,15 +57,36 @@ module Panda
 
       ensure
         # Emit console summary for humans
-        summary.to_stdout!
+        begin
+          summary.to_stdout!
+        rescue => e
+          puts "Error writing summary to stdout: #{e.message}"
+        end
 
         # Always write reports
         tmp_dir      = File.join(dummy_root, "tmp")
+        FileUtils.mkdir_p(tmp_dir) unless Dir.exist?(tmp_dir)
+
         html_path    = File.join(tmp_dir, "panda_assets_report.html")
         json_path    = File.join(tmp_dir, "panda_assets_summary.json")
 
-        HTMLReport.write!(summary, html_path)
-        summary.write_json!(json_path)
+        # Write HTML report with error handling
+        begin
+          HTMLReport.write!(summary, html_path)
+        rescue => e
+          puts "Error writing HTML report: #{e.message}"
+          # Write a minimal error report
+          File.write(html_path, "<html><body><h1>Error generating report</h1><pre>#{e.message}\n#{e.backtrace.join("\n")}</pre></body></html>")
+        end
+
+        # Write JSON with error handling
+        begin
+          summary.write_json!(json_path)
+        rescue => e
+          puts "Error writing JSON summary: #{e.message}"
+          # Write minimal JSON
+          File.write(json_path, '{"error": "Failed to generate summary", "message": "' + e.message.gsub('"', '\\"') + '"}')
+        end
       end
 
       # Prepare phase: compile + copy JS + importmap
