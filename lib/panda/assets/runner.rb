@@ -1,13 +1,9 @@
 # frozen_string_literal: true
+
 require "pathname"
-
-ROOT = Pathname.new(__dir__).expand_path
-$LOAD_PATH.unshift(ROOT.to_s)
-
-# lib/panda/assets/runner.rb
-# frozen_string_literal: true
-
 require "benchmark"
+require "fileutils"
+
 require_relative "ui"
 require_relative "summary"
 require_relative "html_report"
@@ -17,51 +13,103 @@ require_relative "verifier"
 module Panda
   module Assets
     class Runner
-      def self.run_all!(dummy_root:)
-        new(dummy_root:).run_all!
+      include UI
+
+      class << self
+        # Used by the GitHub Action
+        #
+        #   Panda::Assets::Runner.run_all!(dummy_root: "/path/to/spec/dummy")
+        #
+        def run_all!(dummy_root:)
+          new(dummy_root:).run_all!
+        end
       end
+
+      attr_reader :dummy_root, :summary
 
       def initialize(dummy_root:)
         @dummy_root = File.expand_path(dummy_root)
-        @summary = Summary.new
+        @summary    = Summary.new
       end
 
+      # Main pipeline: prepare + verify + report
+      #
+      # - Never raises for asset problems
+      # - Always writes HTML + JSON reports
+      # - Returns true/false for CI exit code
+      #
       def run_all!
-        begin
-          UI.banner("Prepare Panda Assets")
-          prepare!
-        rescue => e
-          @summary.add_prepare_error("Exception: #{e.message}")
-        end
+        UI.banner("Prepare Panda Assets")
 
         begin
-          UI.banner("Verify Panda Assets")
+          prepare!
+        rescue => e
+          summary.add_prepare_error("Exception in prepare!: #{e.class}: #{e.message}")
+        end
+
+        UI.banner("Verify Panda Assets")
+
+        begin
           verify!
         rescue => e
-          @summary.add_verify_error("Exception: #{e.message}")
+          summary.add_verify_error("Exception in verify!: #{e.class}: #{e.message}")
         end
 
       ensure
-        write_outputs!
+        # Emit console summary for humans
+        summary.to_stdout!
+
+        # Always write reports
+        tmp_dir      = File.join(dummy_root, "tmp")
+        html_path    = File.join(tmp_dir, "panda_assets_report.html")
+        json_path    = File.join(tmp_dir, "panda_assets_summary.json")
+
+        HTMLReport.write!(summary, html_path)
+        summary.write_json!(json_path)
       end
 
+      # Prepare phase: compile + copy JS + importmap
       def prepare!
-        Preparer.new(dummy_root: @dummy_root, summary: @summary).run
+        t_total = Benchmark.realtime do
+          preparer = Preparer.new(dummy_root: dummy_root, summary: summary)
+          preparer.run
+        end
+        summary.timings[:prepare_total] = t_total
       end
 
+      # Verify phase: manifest + importmap + HTTP checks
       def verify!
-        Verifier.new(dummy_root: @dummy_root, summary: @summary).run
-      end
-
-      def write_outputs!
-        json_path   = File.join(@dummy_root, "tmp/panda_assets_summary.json")
-        report_path = File.join(@dummy_root, "tmp/panda_assets_report.html")
-
-        @summary.write_json!(json_path)
-        HTMLReport.write!(@summary, report_path)
-
-        UI.banner("Final Result", status: @summary.failed? ? :fail : :ok)
+        t_total = Benchmark.realtime do
+          verifier = Verifier.new(dummy_root: dummy_root, summary: summary)
+          verifier.run
+        end
+        summary.timings[:verify_total] = t_total
       end
     end
   end
+end
+
+# --- CLI entrypoint when called directly ---
+if $PROGRAM_NAME == __FILE__
+  dummy_root = nil
+  args = ARGV.dup
+
+  while (arg = args.shift)
+    case arg
+    when "--dummy"
+      dummy_root = args.shift
+    else
+      warn "Unknown argument: #{arg}"
+    end
+  end
+
+  unless dummy_root
+    warn "Usage: #{$PROGRAM_NAME} --dummy PATH/TO/spec/dummy"
+    exit 1
+  end
+
+  runner = Panda::Assets::Runner.new(dummy_root: dummy_root)
+  runner.run_all!
+
+  exit(runner.summary.failed? ? 1 : 0)
 end

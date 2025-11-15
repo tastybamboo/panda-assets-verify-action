@@ -2,388 +2,263 @@
 
 <html lang="en">
   <head>
-    <meta charset="UTF-8">
-
-    <title>Panda Assets Report</title>
-
-    <!-- -------------------------------------------------------- -->
-    <!-- Tailwind-Lite Variables + Dark Mode -->
-    <!-- -------------------------------------------------------- -->
+    <meta charset="utf-8">
+    <title>Panda Asset Verification Report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-    :root {
-      --bg: #f8fafc;
-      --text: #111827;
-      --border: #e5e7eb;
-      --panel: #ffffff;
-      --panel-alt: #f9fafb;
-
-      --green: #16a34a;
-      --red:   #dc2626;
-      --yellow:#ca8a04;
-
-      --code-bg: #eef2ff;
-      --purple: #7c3aed;
-    }
-
-    @media (prefers-color-scheme: dark) {
       :root {
         --bg: #0f172a;
-        --text: #e2e8f0;
-        --border: #334155;
-        --panel: #1e293b;
-        --panel-alt: #334155;
-        --code-bg: #1e293b;
+        --card: #111827;
+        --card-soft: #020617;
+        --border: #1f2937;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --green: #22c55e;
+        --red: #ef4444;
+        --yellow: #eab308;
+        --accent: #38bdf8;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
-    }
 
-    body.dark {
-      --bg: #0f172a;
-      --text: #e2e8f0;
-      --border: #334155;
-      --panel: #1e293b;
-      --panel-alt: #334155;
-      --code-bg: #1e293b;
-    }
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: radial-gradient(circle at top, #1e293b 0, #020617 45%, #020617 100%);
+        color: var(--text);
+        font-family: var(--sans);
+      }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      padding: 0 0 4rem 0;
-      line-height: 1.5;
-    }
+      .page {
+        max-width: 960px;
+        margin: 0 auto;
+      }
 
-    .container {
-      max-width: 960px;
-      margin: 2rem auto;
-      background: var(--panel);
-      padding: 2rem 3rem;
-      border-radius: 14px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
-    }
+      .card {
+        background: radial-gradient(circle at top left, #111827 0, #020617 45%);
+        border-radius: 1rem;
+        border: 1px solid var(--border);
+        padding: 1.5rem 2rem;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      }
 
-    h1 { font-size: 2rem; margin-bottom: 0.6rem; }
-    h2 { font-size: 1.45rem; margin-top: 2rem; margin-bottom: 0.6rem; }
-    h3 { font-size: 1.2rem; margin-top: 1.2rem; margin-bottom: 0.4rem; }
+      .title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+      }
 
-    .badge {
-      padding: 0.25rem 0.65rem;
-      font-size: 0.85rem;
-      border-radius: 6px;
-      font-weight: 600;
-      color: #fff;
-    }
-    .green  { background: var(--green); }
-    .red    { background: var(--red); }
-    .yellow { background: var(--yellow); }
-    .purple { background: var(--purple); }
+      h1 {
+        font-size: 1.4rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0;
+      }
 
-    /* Collapsible sections */
-    details {
-      margin-top: 1rem;
-      background: var(--panel-alt);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem 1.5rem;
-    }
+      .pill {
+        border-radius: 999px;
+        padding: 0.25rem 0.9rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: linear-gradient(to right, rgba(37, 99, 235, 0.1), rgba(56, 189, 248, 0.18));
+        color: var(--accent);
+      }
 
-    /* Code/logs */
-    pre, code {
-      background: var(--code-bg);
-      padding: 0.5rem;
-      border-radius: 6px;
-      overflow-x: auto;
-      font-size: 0.9rem;
-    }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+      }
 
-    /* Tables */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 0.8rem;
-    }
-    th, td {
-      text-align: left;
-      padding: 0.6rem;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.9rem;
-    }
-    th {
-      background: var(--panel-alt);
-      font-weight: 600;
-    }
-    .file-pass { color: var(--green); font-weight: 600; }
-    .file-fail { color: var(--red); font-weight: 600; }
+      .metric {
+        background: var(--card-soft);
+        border-radius: 0.75rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--border);
+      }
 
-    /* Progress bar */
-    .progress-bar {
-      height: 12px;
-      background: var(--border);
-      border-radius: 6px;
-      margin-top: 6px;
-      position: relative;
-      overflow: hidden;
-    }
-    .progress-fill {
-      background: var(--green);
-      height: 100%;
-      width: 0%;
-      transition: width 1.2s ease;
-    }
-    .progress-fill.fail {
-      background: var(--red);
-    }
+      .metric-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.25rem;
+      }
 
-    /* Importmap graph */
-    .tree {
-      border-left: 2px solid var(--border);
-      padding-left: 1rem;
-      margin-left: 0.5rem;
-    }
-    .tree-item {
-      margin: 0.2rem 0;
-    }
+      .metric-value {
+        font-size: 0.95rem;
+        font-family: var(--mono);
+      }
 
-    /* Dark mode toggle */
-    #theme-toggle {
-      cursor: pointer;
-      padding: 0.4rem 0.8rem;
-      border-radius: 6px;
-      background: var(--panel-alt);
-      border: 1px solid var(--border);
-      font-size: 0.85rem;
-      float: right;
-    }
+      .status-ok {
+        color: var(--green);
+      }
 
-    footer {
-      text-align: center;
-      opacity: 0.65;
-      margin-top: 3rem;
-      font-size: 0.85rem;
-    }
-  </style>
+      .status-fail {
+        color: var(--red);
+      }
 
-    <script>
-    // Dark mode toggle
-    function toggleTheme() {
-      document.body.classList.toggle('dark');
-      localStorage.setItem('pandaTheme', document.body.classList.contains('dark') ? 'dark' : 'light');
-    }
-    document.addEventListener("DOMContentLoaded", () => {
-      if (localStorage.getItem('pandaTheme') === 'dark') document.body.classList.add('dark');
+      .section-title {
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
 
-      // Animate progress bars
-      document.querySelectorAll(".progress-fill").forEach(bar => {
-        const target = bar.dataset.progress;
-        setTimeout(() => { bar.style.width = target + "%"; }, 150);
-      });
-    });
-  </script>
+      pre.log {
+        background: #020617;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
+        padding: 0.75rem 1rem;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        max-height: 260px;
+        overflow: auto;
+        color: var(--muted);
+      }
+
+      ul {
+        margin: 0.25rem 0 0.75rem;
+        padding-left: 1.1rem;
+      }
+
+      li {
+        font-size: 0.85rem;
+      }
+
+      code {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        background: rgba(15, 23, 42, 0.9);
+        padding: 0.08rem 0.35rem;
+        border-radius: 0.35rem;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+      }
+
+      .footer {
+        margin-top: 1.5rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        border-top: 1px solid var(--border);
+        padding-top: 0.75rem;
+      }
+
+      .badge {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .badge-ok {
+        color: var(--green);
+      }
+
+      .badge-fail {
+        color: var(--red);
+      }
+    </style>
   </head>
-
   <body>
-    <div class="container">
-      <button id="theme-toggle" onclick="toggleTheme()">🌓 Toggle Theme</button>
-
-      <h1>🐼 Panda Assets Verification Report</h1>
-
-      <p>
-        <strong>Generated:</strong>
-        <%= Time.now.strftime("%Y-%m-%d %H:%M:%S %Z") %>
-      </p>
-
-      <h2>
-        Overall:
-        <% if summary.failed? %>
-          <span class="badge red">FAIL</span>
-        <% else %>
-          <span class="badge green">PASS</span>
-        <% end %>
-      </h2>
-
-      <!-- -------------------------------------------------------------- -->
-      <!-- MODULE SUMMARIES (NEW!) -->
-      <!-- -------------------------------------------------------------- -->
-      <% if summary.respond_to?(:module_summaries) && summary.module_summaries.any? %>
-        <h2>Module Summaries</h2>
-        <% summary.module_summaries.each do |mod| %>
-          <details>
-            <summary>
-              <strong><%= mod[:name] %></strong> — <%= mod[:files].size %>
-              files
-            </summary>
-
-            <table>
-              <thead>
-                <tr>
-                  <th>File</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <% mod[:files].each do |f| %>
-                  <tr>
-                    <td><code><%= f[:file] %></code></td>
-                    <td>
-                      <% if f[:status] == :ok %>
-                        <span class="file-pass">✓</span>
-                      <% else %>
-                        <span class="file-fail">✗</span>
-                      <% end %>
-                    </td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </details>
-        <% end %>
-      <% end %>
-
-      <!-- -------------------------------------------------------------- -->
-      <!-- VERSION RESOLUTION (existing) -->
-      <!-- -------------------------------------------------------------- -->
-      <% if summary.respond_to?(:version_matrix) && summary.version_matrix.any? %>
-        <h2>Version Resolution</h2>
-        <div class="progress-bar">
-          <% pct = summary.version_matrix.count { |r| r[:status] == :ok } * 100 / summary.version_matrix.size %>
-          <div
-            class="progress-fill <%= pct == 100 ? '' : 'fail' %>"
-            data-progress="<%= pct %>"
-          ></div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Module</th>
-              <th>File</th>
-              <th>Path</th>
-              <th>Version</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% summary.version_matrix.each do |row| %>
-              <tr>
-                <td><%= row[:module] %></td>
-                <td><code><%= row[:file] %></code></td>
-                <td><%= row[:path] %></td>
-                <td><%= row[:version] || "n/a" %></td>
-                <td>
-                  <% if row[:status] == :ok %>
-                    <span class="file-pass">✓ OK</span>
-                  <% else %>
-                    <span class="file-fail">✗ Missing</span>
-                  <% end %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      <% end %>
-
-      <!-- -------------------------------------------------------------- -->
-      <!-- DIFF VIEW: Expected vs Missing -->
-      <!-- -------------------------------------------------------------- -->
-      <h2>Diff View</h2>
-
-      <% if summary.respond_to?(:diff_missing) && summary.diff_missing.any? %>
-        <details open>
-          <summary><strong>Missing Assets</strong></summary>
-          <ul>
-            <% summary.diff_missing.each do |file| %>
-              <li>❌ <code><%= file %></code></li>
-            <% end %>
-          </ul>
-        </details>
-      <% else %>
-        <p><span class="badge green">No assets missing</span></p>
-      <% end %>
-
-      <!-- -------------------------------------------------------------- -->
-      <!-- IMPORTMAP GRAPH (NEW!) -->
-      <!-- -------------------------------------------------------------- -->
-      <% if summary.respond_to?(:importmap_tree) && summary.importmap_tree.any? %>
-        <h2>Importmap Modules</h2>
-        <details open>
-          <summary>
-            <strong>Importmap Graph</strong> (click to collapse)
-          </summary>
-          <div class="tree">
-            <% summary.importmap_tree.each do |pkg, entry| %>
-              <div class="tree-item">
-                📦
-                <strong><%= pkg %></strong>
-                <div class="tree">
-                  <div class="tree-item"><code><%= entry[:path] %></code></div>
-                </div>
-              </div>
-            <% end %>
+    <div class="page">
+      <div class="card">
+        <div class="title-row">
+          <div>
+            <h1>🐼 Panda Asset Verification</h1>
+            <div
+              style="font-size:0.85rem;color:var(--muted);margin-top:0.25rem;"
+            >
+              Rails dummy asset pipeline health check
+            </div>
           </div>
-        </details>
-      <% end %>
+          <div class="pill"><%= summary.failed? ? "FAILED" : "PASSED" %></div>
+        </div>
 
-      <!-- -------------------------------------------------------------- -->
-      <!-- PREPARE DETAILS -->
-      <!-- -------------------------------------------------------------- -->
-      <h2>Prepare Phase</h2>
+        <div class="grid">
+          <div class="metric">
+            <div class="metric-label">Prepare</div>
+            <div class="metric-value <%= summary.prepare_ok? ? 'status-ok' : 'status-fail' %>">
+              <%= summary.prepare_ok? ? "PASS" : "FAIL" %>
+            </div>
+          </div>
 
-      <% if summary.prepare_ok? %>
-        <span class="badge green">Prepare OK</span>
-      <% else %>
-        <span class="badge red">Prepare Failed</span>
-      <% end %>
+          <div class="metric">
+            <div class="metric-label">Verify</div>
+            <div class="metric-value <%= summary.verify_ok? ? 'status-ok' : 'status-fail' %>">
+              <%= summary.verify_ok? ? "PASS" : "FAIL" %>
+            </div>
+          </div>
 
-      <% if summary.prepare_errors.any? %>
-        <details open>
-          <summary><strong>Errors</strong></summary>
+          <div class="metric">
+            <div class="metric-label">Prepare Time</div>
+            <div class="metric-value">
+              <%= format('%.2fs', (summary.timings[:prepare_total] || 0.0)) %>
+            </div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Verify Time</div>
+            <div class="metric-value">
+              <%= format('%.2fs', (summary.timings[:verify_total] || 0.0)) %>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Prepare Logs</div>
+
+        <pre class="log"><%= (summary.prepare[:log] || []).join("\n") %></pre>
+
+        <div class="section-title">Verify Logs</div>
+
+        <pre class="log"><%= (summary.verify[:log] || []).join("\n") %></pre>
+
+        <% if summary.prepare_errors.any? %>
+          <div class="section-title">Prepare Errors</div>
           <ul>
             <% summary.prepare_errors.each do |err| %>
-              <li>❌ <%= err %></li>
+              <li><code>PREPARE</code> <%= err %></li>
             <% end %>
           </ul>
-        </details>
-      <% end %>
+        <% end %>
 
-      <% if summary.prepare_log.to_s.strip != "" %>
-        <details>
-          <summary><strong>Prepare Log</strong></summary>
-          <pre><%= summary.prepare_log %></pre>
-        </details>
-      <% end %>
-
-      <!-- -------------------------------------------------------------- -->
-      <!-- VERIFY DETAILS -->
-      <!-- -------------------------------------------------------------- -->
-      <h2>Verify Phase</h2>
-
-      <% if summary.verify_ok? %>
-        <span class="badge green">Verify OK</span>
-      <% else %>
-        <span class="badge red">Verify Failed</span>
-      <% end %>
-
-      <% if summary.verify_errors.any? %>
-        <details open>
-          <summary><strong>Errors</strong></summary>
+        <% if summary.verify_errors.any? %>
+          <div class="section-title">Verify Errors</div>
           <ul>
             <% summary.verify_errors.each do |err| %>
-              <li>❌ <%= err %></li>
+              <li><code>VERIFY</code> <%= err %></li>
             <% end %>
           </ul>
-        </details>
-      <% end %>
+        <% end %>
 
-      <% if summary.verify_log.to_s.strip != "" %>
-        <details>
-          <summary><strong>Verify Log</strong></summary>
-          <pre><%= summary.verify_log %></pre>
-        </details>
-      <% end %>
+        <% if summary.diff_missing.any? %>
+          <div class="section-title">Missing Manifest / HTTP Assets</div>
+          <ul>
+            <% summary.diff_missing.each do |f| %>
+              <li><code><%= f %></code></li>
+            <% end %>
+          </ul>
+        <% end %>
 
-      <footer>
-        panda-assets-verify-action v1 · Generated automatically
-      </footer>
+        <div class="footer">
+          <div class="badge <%= summary.failed? ? 'badge-fail' : 'badge-ok' %>">
+            <%= summary.failed? ? "Final: FAIL" : "Final: PASS" %>
+          </div>
+          <div>
+            Generated at
+            <code><%= Time.now.utc.strftime("%Y-%m-%d %H:%M:%S UTC") %></code>
+          </div>
+        </div>
+      </div>
     </div>
   </body>
 </html>
