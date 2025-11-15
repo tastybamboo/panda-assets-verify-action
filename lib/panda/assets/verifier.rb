@@ -283,12 +283,13 @@ module Panda
         current = 0
         total = manifest.size
 
-        manifest.keys.each do |file|
+        manifest.each do |logical_path, digested_filename|
           current += 1
           UI.progress(current, total, "Checking manifest assets")
 
-          # Propshaft manifest keys are digest filenames relative to /assets
-          http_path = "/assets/#{file}"
+          # Propshaft manifest maps logical paths to digested filenames
+          # We need to check the actual digested file
+          http_path = "/assets/#{digested_filename}"
           res = http_get(http_path, port)
           next unless res
 
@@ -305,7 +306,7 @@ module Panda
             end
 
             # Provide more context for common asset types
-            file_hint = case File.extname(file)
+            file_hint = case File.extname(logical_path)
             when ".js"
               "JavaScript file may have compilation errors"
             when ".css"
@@ -316,9 +317,9 @@ module Panda
               "Check that this file was generated during compilation"
             end
 
-            msg = "Manifest asset failed: #{error_detail}\n     File: #{file}\n     Hint: #{file_hint}"
+            msg = "Manifest asset failed: #{error_detail}\n     Logical path: #{logical_path}\n     Digested file: #{digested_filename}\n     Hint: #{file_hint}"
             summary.add_verify_error(msg)
-            summary.diff_missing << file
+            summary.diff_missing << logical_path
           end
         end
       rescue JSON::ParserError => e
