@@ -105,7 +105,7 @@ module Panda
           # Write minimal markdown
           File.write(md_path, "# Error\n\nFailed to generate summary: #{e.message}")
         end
-      ensure
+
         # Restore original stdout if we redirected it
         $stdout = original_stdout if original_stdout
       end
