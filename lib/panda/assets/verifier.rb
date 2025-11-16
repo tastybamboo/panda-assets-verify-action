@@ -94,6 +94,7 @@ module Panda
         server, port = start_server
 
         begin
+          verify_panda_javascript(port)
           verify_importmap(port)
           verify_manifest(port)
         ensure
@@ -217,6 +218,86 @@ module Panda
         nil
       end
 
+      def verify_panda_javascript(port)
+        # Check for panda JavaScript files that are critical for the test environment
+        # These are served from public/panda/ directory in the test environment
+
+        summary.add_verify_log("\n🔍 Panda JavaScript Module Verification:")
+        summary.add_verify_log("=" * 60)
+
+        panda_js_root = File.join(dummy_root, "public", "panda")
+
+        unless Dir.exist?(panda_js_root)
+          summary.add_verify_log("⚠️  No panda JavaScript directory found at #{panda_js_root}")
+          summary.add_verify_log("   This may cause JavaScript loading issues in tests")
+          return
+        end
+
+        # Find all JavaScript files in the panda directory
+        js_files = Dir.glob(File.join(panda_js_root, "**/*.js"))
+
+        if js_files.empty?
+          summary.add_verify_log("⚠️  No JavaScript files found in #{panda_js_root}")
+          return
+        end
+
+        summary.add_verify_log("Found #{js_files.size} JavaScript files to verify")
+
+        success_count = 0
+        failure_count = 0
+
+        js_files.each do |file_path|
+          # Convert file path to URL path
+          relative_path = file_path.sub(File.join(dummy_root, "public"), "")
+          http_path = relative_path
+
+          res = http_get(http_path, port)
+
+          if res && res.is_a?(Net::HTTPSuccess)
+            success_count += 1
+            summary.add_verify_log("✅ #{relative_path}")
+            summary.add_verify_log("   Status: HTTP #{res.code} OK")
+            summary.add_verify_log("   Size: #{res['Content-Length']} bytes") if res['Content-Length']
+          else
+            failure_count += 1
+            status = res ? "HTTP #{res.code}" : "CONNECTION FAILED"
+            summary.add_verify_log("❌ #{relative_path}")
+            summary.add_verify_log("   Status: #{status}")
+
+            # Don't add to verify_errors since these might be optional
+            # but log them for debugging
+            if relative_path.include?("application.js")
+              # application.js is critical - this should be an error
+              summary.add_verify_error("Critical file missing: #{relative_path} (#{status})")
+            end
+          end
+        end
+
+        summary.add_verify_log("=" * 60)
+        summary.add_verify_log("Panda JS Summary: #{success_count} passed, #{failure_count} failed")
+
+        # Also check if files are accessible from app/javascript/panda path
+        # This is where ModuleRegistry middleware expects them
+        app_js_root = File.join(dummy_root, "app", "javascript", "panda")
+        if Dir.exist?(app_js_root)
+          app_js_files = Dir.glob(File.join(app_js_root, "**/*.js"))
+          summary.add_verify_log("\n📂 app/javascript/panda: #{app_js_files.size} files present")
+          if app_js_files.any?
+            # Show first few files as confirmation
+            app_js_files.first(3).each do |f|
+              relative = f.sub(dummy_root, "")
+              summary.add_verify_log("   - #{relative}")
+            end
+            summary.add_verify_log("   ...") if app_js_files.size > 3
+          end
+        else
+          summary.add_verify_log("\n⚠️  No app/javascript/panda directory found")
+          summary.add_verify_log("   ModuleRegistry middleware expects files here for runtime")
+        end
+
+        summary.add_verify_log("")
+      end
+
       def verify_importmap(port)
         return unless File.exist?(importmap_path)
 
@@ -240,8 +321,13 @@ module Panda
           return
         end
 
+        summary.add_verify_log("\n📋 Importmap Asset Verification Report:")
+        summary.add_verify_log("=" * 60)
+
         current = 0
         total = local_imports.size
+        success_count = 0
+        failure_count = 0
 
         local_imports.each do |name, path|
           current += 1
@@ -250,25 +336,43 @@ module Panda
           http_path = path.start_with?("/") ? path : "/assets/#{path}"
 
           res = http_get(http_path, port)
-          next unless res
 
-          unless res.is_a?(Net::HTTPSuccess)
-            error_detail = case res.code
-            when "404"
-              "File not found - may not have been compiled or copied correctly"
-            when "403"
-              "Permission denied - check file permissions"
-            when "500"
-              "Server error - check server logs for details"
+          if res && res.is_a?(Net::HTTPSuccess)
+            success_count += 1
+            summary.add_verify_log("✅ #{name}")
+            summary.add_verify_log("   URL: #{http_path}")
+            summary.add_verify_log("   Status: HTTP #{res.code} OK")
+          else
+            failure_count += 1
+            error_detail = if res
+              case res.code
+              when "404"
+                "File not found - may not have been compiled or copied correctly"
+              when "403"
+                "Permission denied - check file permissions"
+              when "500"
+                "Server error - check server logs for details"
+              else
+                "HTTP #{res.code} - unexpected response"
+              end
             else
-              "HTTP #{res.code} - unexpected response"
+              "No response - connection failed"
             end
+
+            summary.add_verify_log("❌ #{name}")
+            summary.add_verify_log("   URL: #{http_path}")
+            summary.add_verify_log("   Status: #{res ? "HTTP #{res.code}" : "CONNECTION FAILED"}")
+            summary.add_verify_log("   Error: #{error_detail}")
 
             msg = "Import '#{name}' failed: #{error_detail}\n     Path: #{http_path}"
             summary.add_verify_error(msg)
             summary.diff_missing << http_path
           end
         end
+
+        summary.add_verify_log("=" * 60)
+        summary.add_verify_log("Importmap Summary: #{success_count} passed, #{failure_count} failed")
+        summary.add_verify_log("")
       rescue JSON::ParserError => e
         summary.add_verify_error("JSON parse error for importmap.json: #{e.message}")
       end
@@ -279,9 +383,13 @@ module Panda
         manifest = JSON.parse(File.read(manifest_path))
 
         summary.add_verify_log("Verifying #{manifest.size} manifest entries via HTTP")
+        summary.add_verify_log("\n📦 Manifest Asset Verification Report:")
+        summary.add_verify_log("=" * 60)
 
         current = 0
         total = manifest.size
+        success_count = 0
+        failure_count = 0
 
         manifest.each do |logical_path, asset_info|
           current += 1
@@ -296,6 +404,9 @@ module Panda
           end
 
           unless digested_filename
+            failure_count += 1
+            summary.add_verify_log("❌ #{logical_path}")
+            summary.add_verify_log("   Error: Missing digested_path in manifest")
             summary.add_verify_error("Missing digested_path for #{logical_path}")
             next
           end
@@ -303,18 +414,28 @@ module Panda
           # We need to check the actual digested file
           http_path = "/assets/#{digested_filename}"
           res = http_get(http_path, port)
-          next unless res
 
-          unless res.is_a?(Net::HTTPSuccess)
-            error_detail = case res.code
-            when "404"
-              "Asset not found - check compilation output"
-            when "403"
-              "Permission denied - check file permissions"
-            when "500"
-              "Server error - check server configuration"
+          if res && res.is_a?(Net::HTTPSuccess)
+            success_count += 1
+            summary.add_verify_log("✅ #{logical_path}")
+            summary.add_verify_log("   URL: #{http_path}")
+            summary.add_verify_log("   Status: HTTP #{res.code} OK")
+            summary.add_verify_log("   Digested: #{digested_filename}")
+          else
+            failure_count += 1
+            error_detail = if res
+              case res.code
+              when "404"
+                "Asset not found - check compilation output"
+              when "403"
+                "Permission denied - check file permissions"
+              when "500"
+                "Server error - check server configuration"
+              else
+                "HTTP #{res.code}"
+              end
             else
-              "HTTP #{res.code}"
+              "No response - connection failed"
             end
 
             # Provide more context for common asset types
@@ -329,11 +450,22 @@ module Panda
               "Check that this file was generated during compilation"
             end
 
+            summary.add_verify_log("❌ #{logical_path}")
+            summary.add_verify_log("   URL: #{http_path}")
+            summary.add_verify_log("   Status: #{res ? "HTTP #{res.code}" : "CONNECTION FAILED"}")
+            summary.add_verify_log("   Digested: #{digested_filename}")
+            summary.add_verify_log("   Error: #{error_detail}")
+            summary.add_verify_log("   Hint: #{file_hint}")
+
             msg = "Manifest asset failed: #{error_detail}\n     Logical path: #{logical_path}\n     Digested file: #{digested_filename}\n     Hint: #{file_hint}"
             summary.add_verify_error(msg)
             summary.diff_missing << logical_path
           end
         end
+
+        summary.add_verify_log("=" * 60)
+        summary.add_verify_log("Manifest Summary: #{success_count} passed, #{failure_count} failed")
+        summary.add_verify_log("")
       rescue JSON::ParserError => e
         summary.add_verify_error("JSON parse error for .manifest.json: #{e.message}")
       end

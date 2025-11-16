@@ -75,19 +75,36 @@ module Panda
           return
         end
 
-        # Copy to app/javascript for Rails runtime
+        # List all JS files to be copied for debugging
+        js_files = Dir.glob(File.join(src_root, "**/*")).select { |f| File.file?(f) }
+        summary.add_prepare_log("Found #{js_files.size} files to copy from #{src_root}")
+        js_files.each do |file|
+          relative = file.sub(src_root, "")
+          summary.add_prepare_log("  - #{relative}")
+        end
+
+        # Copy to app/javascript for Rails runtime (ModuleRegistry middleware expects this)
         FileUtils.mkdir_p(dest_root)
-        FileUtils.cp_r(Dir[File.join(src_root, "*")], dest_root)
-        summary.add_prepare_log("Copied JS from #{src_root} → #{dest_root}")
+        FileUtils.cp_r(Dir[File.join(src_root, "*")], dest_root, remove_destination: true)
+        summary.add_prepare_log("✅ Copied JS to app/javascript for runtime: #{src_root} → #{dest_root}")
+
+        # Verify the copy was successful
+        copied_runtime = Dir.glob(File.join(dest_root, "**/*")).select { |f| File.file?(f) }
+        summary.add_prepare_log("  Verified #{copied_runtime.size} files in #{dest_root}")
 
         # Also copy to public/panda for static verification
         FileUtils.mkdir_p(public_dest)
-        FileUtils.cp_r(Dir[File.join(src_root, "*")], public_dest)
-        summary.add_prepare_log("Copied JS to public for verification: #{src_root} → #{public_dest}")
+        FileUtils.cp_r(Dir[File.join(src_root, "*")], public_dest, remove_destination: true)
+        summary.add_prepare_log("✅ Copied JS to public for verification: #{src_root} → #{public_dest}")
+
+        # Verify the public copy was successful
+        copied_public = Dir.glob(File.join(public_dest, "**/*")).select { |f| File.file?(f) }
+        summary.add_prepare_log("  Verified #{copied_public.size} files in #{public_dest}")
       rescue => e
         summary.add_prepare_error("Error copying JS: #{e.class}: #{e.message}")
         summary.add_prepare_log("Source path: #{src_root}")
         summary.add_prepare_log("Error: #{e.message}")
+        summary.add_prepare_log("Backtrace:\n#{e.backtrace.join("\n")}")
         summary.mark_prepare_failed!
       end
 
