@@ -10,6 +10,10 @@ inputs:
     description: 'Path to dummy Rails app'
     required: false
     default: 'spec/dummy'
+  artifact_suffix:
+    description: 'Suffix for artifact names to avoid conflicts in matrix builds'
+    required: false
+    default: ''
 
 outputs:
   result:
@@ -65,7 +69,7 @@ runs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: panda-assets-report
+        name: panda-assets-report${{ inputs.artifact_suffix }}
         path: ${{ inputs.dummy_root }}/tmp/panda_assets_report.html
         if-no-files-found: warn
 
@@ -73,16 +77,18 @@ runs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: panda-assets-summary
+        name: panda-assets-summary${{ inputs.artifact_suffix }}
         path: ${{ inputs.dummy_root }}/tmp/panda_assets_summary.json
         if-no-files-found: warn
 
     - name: Annotate PR with asset errors
       if: always()
       uses: actions/github-script@v7
+      env:
+        SUMMARY_JSON: ${{ steps.run_pipeline.outputs.summary_json }}
       with:
         script: |
-          const summaryJson = '${{ steps.run_pipeline.outputs.summary_json }}'.trim();
+          const summaryJson = process.env.SUMMARY_JSON?.trim() || '';
           if (!summaryJson) {
             core.warning("No summary JSON found — skipping annotations.");
             return;
@@ -126,11 +132,15 @@ runs:
     - name: Create GitHub Check Run
       if: always()
       uses: actions/github-script@v7
+      env:
+        RESULT: ${{ steps.run_pipeline.outputs.result }}
+        SUMMARY_JSON: ${{ steps.run_pipeline.outputs.summary_json }}
+        REPORT_PATH: ${{ steps.run_pipeline.outputs.report_path }}
       with:
         script: |
-          const result   = "${{ steps.run_pipeline.outputs.result }}".trim();
-          const summaryJson = '${{ steps.run_pipeline.outputs.summary_json }}'.trim();
-          const reportPath  = "${{ steps.run_pipeline.outputs.report_path }}".trim();
+          const result   = process.env.RESULT?.trim() || '';
+          const summaryJson = process.env.SUMMARY_JSON?.trim() || '';
+          const reportPath  = process.env.REPORT_PATH?.trim() || '';
 
           let data = {};
           try {
