@@ -54,11 +54,12 @@ jobs:
 1. Installs Ruby (via `ruby/setup-ruby`)
 2. Installs only the small Ruby gems required by the action:
    - `webrick`
-   - `benchmark` (Ruby 3.5+)
 3. Runs the unified Panda asset pipeline:
-   - Compiles engine + module assets
+   - **Compiles CSS** for all registered Panda modules (core, cms, cms-pro, etc.)
+   - Compiles Propshaft assets
+   - Copies engine JavaScript files
+   - Generates importmap.json
    - Runs HTTP checks
-   - Scans importmaps
    - Validates manifest files
 4. Writes a Tailwind-styled HTML report (`panda-assets-report.html`)
 5. Uploads the report to GitHub Actions Artifacts

@@ -23,12 +23,64 @@ module Panda
       end
 
       def run
+        compile_css
         compile_propshaft
         copy_engine_js
         generate_importmap
       end
 
       private
+
+      def compile_css
+        summary.add_prepare_log("Compiling Panda CSS for all registered modules")
+
+        start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+        # Run from the host root (the gem directory) to ensure proper Rails environment
+        Dir.chdir(host_root) do
+          # Try app:panda:compile_css first (works from gem root)
+          # Fall back to panda:compile_css if needed (works from spec/dummy)
+          cmd = "bundle exec rake app:panda:compile_css 2>&1 || bundle exec rake panda:compile_css 2>&1"
+
+          spinner = UI::Spinner.new("Compiling CSS (this scans all Panda module files)")
+          spinner.start
+
+          output = `#{cmd}`
+          ok = $?.success?
+
+          if ok
+            spinner.stop(success: true, final_message: "CSS compiled successfully")
+
+            # Check if CSS file was actually created
+            css_file = Dir.glob(File.join(host_root, "public/panda-*-assets/panda-*.css")).first
+            if css_file
+              file_size = (File.size(css_file) / 1024.0).round(1)
+              summary.add_prepare_log("✅ CSS file generated: #{File.basename(css_file)} (#{file_size} KB)")
+            else
+              summary.add_prepare_log("⚠️  CSS compilation succeeded but no CSS file found in public/")
+            end
+          else
+            spinner.stop(success: false, final_message: "CSS compilation failed")
+
+            summary.add_prepare_error("CSS compilation failed (exit #{$?.exitstatus})")
+            summary.add_prepare_log("Command: #{cmd}")
+            summary.add_prepare_log("Path: #{host_root}")
+            summary.add_prepare_log("\nCommand output:\n#{output}")
+            summary.mark_prepare_failed!
+            return
+          end
+        end
+
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+        summary.timings[:prepare_css] = elapsed
+        summary.add_prepare_log("CSS compiled in #{elapsed.round(2)}s")
+      rescue => e
+        summary.add_prepare_error("Error compiling CSS: #{e.class}: #{e.message}")
+        summary.add_prepare_log("Host root: #{host_root}")
+        summary.add_prepare_log("Error: #{e.message}")
+        summary.add_prepare_log("Backtrace:\n#{e.backtrace.join("\n")}")
+        summary.mark_prepare_failed!
+      end
 
       def compile_propshaft
         summary.add_prepare_log("Compiling Propshaft assets in dummy app")
