@@ -24,6 +24,7 @@ module Panda
 
       def run
         compile_css
+        stage_panda_assets
         compile_propshaft
         copy_engine_js
         generate_importmap
@@ -82,6 +83,40 @@ module Panda
         summary.mark_prepare_failed!
       end
 
+      def stage_panda_assets
+        summary.add_prepare_log("Copying compiled Panda assets into dummy/public")
+
+        source_dir = locate_panda_core_assets
+
+        unless source_dir && Dir.exist?(source_dir)
+          summary.add_prepare_log("⚠️  Unable to find panda-core assets directory. Skipping copy.")
+          return
+        end
+
+        dest_dir = File.join(dummy_root, "public", "panda-core-assets")
+        FileUtils.mkdir_p(dest_dir)
+
+        # Copy everything (CSS, JS, manifest files) to ensure Rails can serve them
+        FileUtils.cp_r(Dir[File.join(source_dir, "*")], dest_dir, remove_destination: true)
+
+        copied_files = Dir.glob(File.join(dest_dir, "**/*")).select { |f| File.file?(f) }
+        summary.add_prepare_log("✅ Copied #{copied_files.size} panda-core asset file(s) to #{dest_dir}")
+
+        css_files = copied_files.select { |f| File.extname(f) == ".css" }
+        if css_files.empty?
+          summary.add_prepare_log("⚠️  No CSS files were copied into #{dest_dir}")
+        else
+          sample = css_files.first
+          size_kb = (File.size(sample) / 1024.0).round(1)
+          summary.add_prepare_log("   Example CSS file: #{File.basename(sample)} (#{size_kb} KB)")
+        end
+      rescue => e
+        summary.add_prepare_error("Error copying panda-core assets: #{e.class}: #{e.message}")
+        summary.add_prepare_log("Source path: #{source_dir || "unknown"}")
+        summary.add_prepare_log("Backtrace:\n#{e.backtrace.join("\n")}")
+        summary.mark_prepare_failed!
+      end
+
       def compile_propshaft
         summary.add_prepare_log("Compiling Propshaft assets in dummy app")
 
@@ -115,6 +150,24 @@ module Panda
         summary.timings[:prepare_propshaft] = t
         summary.add_prepare_log("Propshaft assets compiled in #{t.round(2)}s")
         summary.mark_prepare_ok!
+      end
+
+      def locate_panda_core_assets
+        return File.join(host_root, "public", "panda-core-assets") if Dir.exist?(File.join(host_root, "public", "panda-core-assets"))
+
+        Dir.chdir(host_root) do
+          cmd = %(bundle exec ruby -e "begin; require 'panda/core'; puts Panda::Core::Engine.root.join('public/panda-core-assets'); rescue LoadError => e; warn e.message; exit 1; end")
+          output = `#{cmd}`
+          return nil unless $?.success?
+
+          path = output.split("\n").last&.strip
+          return path if path && Dir.exist?(path)
+        end
+
+        nil
+      rescue => e
+        summary.add_prepare_log("Error locating panda-core assets: #{e.class}: #{e.message}")
+        nil
       end
 
       def copy_engine_js

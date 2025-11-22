@@ -97,6 +97,7 @@ module Panda
           verify_panda_javascript(port)
           verify_importmap(port)
           verify_manifest(port)
+          verify_panda_asset_directories(port)
         ensure
           server&.shutdown
         end
@@ -296,6 +297,40 @@ module Panda
         end
 
         summary.add_verify_log("")
+      end
+
+      def verify_panda_asset_directories(port)
+        asset_dirs = Dir.glob(File.join(dummy_root, "public", "panda-*-assets"))
+        return if asset_dirs.empty?
+
+        summary.add_verify_log("\n🧵 Panda Asset Directory Verification")
+        summary.add_verify_log("=" * 60)
+
+        total_files = 0
+        failures = 0
+
+        asset_dirs.each do |dir|
+          Dir.glob(File.join(dir, "**/*")).each do |file|
+            next unless File.file?(file)
+
+            total_files += 1
+            relative_path = file.sub(File.join(dummy_root, "public"), "")
+            res = http_get(relative_path, port)
+
+            if res && res.is_a?(Net::HTTPSuccess)
+              length = res["Content-Length"] || File.size(file)
+              summary.add_verify_log("✅ #{relative_path} (#{length} bytes)")
+            else
+              failures += 1
+              status = res ? "HTTP #{res.code}" : "CONNECTION FAILED"
+              summary.add_verify_log("❌ #{relative_path} (#{status})")
+              summary.add_verify_error("Panda asset inaccessible: #{relative_path} (#{status})")
+            end
+          end
+        end
+
+        summary.add_verify_log("=" * 60)
+        summary.add_verify_log("Asset verification summary: #{total_files - failures} passed, #{failures} failed")
       end
 
       def verify_importmap(port)
